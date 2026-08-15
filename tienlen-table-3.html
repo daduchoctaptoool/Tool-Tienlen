@@ -1,0 +1,2510 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Tiến Lên Engine — Bàn Chơi</title>
+<style>
+  :root{
+    --felt-dark:#0b2e28; --felt:#123f36; --felt-light:#1c5a4c;
+    --gold:#d4af6a; --gold-bright:#e8c987; --cream:#f2ead9; --ink:#08201b;
+    --danger:#c1553f; --safe:#5f9e6f; --warn:#c99a3f; --red-suit:#c1553f;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:radial-gradient(ellipse at top, var(--felt-light) 0%, var(--felt) 45%, var(--felt-dark) 100%);
+    color:var(--cream);
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    min-height:100vh;
+  }
+  .screen{max-width:900px;margin:0 auto;padding:16px 14px 90px;}
+  header{text-align:center;padding:16px 10px 14px;border-bottom:1px solid rgba(212,175,106,0.25);margin-bottom:16px;}
+  header .eyebrow{letter-spacing:0.28em;font-size:10.5px;text-transform:uppercase;color:var(--gold);margin-bottom:5px;}
+  header h1{font-family:Georgia,serif;font-size:23px;margin:0;font-weight:400;color:var(--gold-bright);}
+  header .sub{font-size:12px;color:rgba(242,234,217,0.55);margin-top:5px;}
+
+  h2.step-title{font-size:13px;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+  h2.step-title .num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--gold);font-size:11px;color:var(--gold-bright);font-family:Georgia,serif;}
+
+  .panel{background:rgba(8,32,27,0.45);border:1px solid rgba(212,175,106,0.22);border-radius:10px;padding:16px;margin-bottom:14px;}
+
+  .choice-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .choice-btn{
+    flex:1;min-width:70px;padding:14px 10px;text-align:center;
+    background:rgba(242,234,217,0.06);border:1px solid rgba(212,175,106,0.35);
+    border-radius:8px;color:var(--cream);font-size:15px;font-weight:600;cursor:pointer;
+  }
+  .choice-btn.active{background:linear-gradient(180deg,var(--gold-bright),var(--gold));color:var(--ink);border-color:var(--gold-bright);}
+  .choice-btn .cap{display:block;font-size:10.5px;font-weight:400;color:inherit;opacity:0.75;margin-top:2px;}
+
+  button.primary{
+    width:100%;margin-top:16px;padding:14px;
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));color:var(--ink);
+    border:none;border-radius:8px;font-weight:700;font-size:14px;letter-spacing:0.04em;
+    text-transform:uppercase;cursor:pointer;
+  }
+  button.secondary{
+    width:100%;margin-top:10px;padding:12px;background:rgba(242,234,217,0.08);
+    border:1px solid rgba(212,175,106,0.4);color:var(--cream);border-radius:8px;
+    font-size:13.5px;cursor:pointer;
+  }
+  button:disabled{opacity:0.4;cursor:not-allowed;}
+  button.danger-btn{background:rgba(193,85,63,0.18);border:1px solid var(--danger);color:#f0b3a5;}
+
+  /* ---- card chips (deck picker) ---- */
+  .suit-row{margin-bottom:10px;}
+  .suit-row .suit-label{font-size:11px;color:rgba(242,234,217,0.5);margin-bottom:5px;}
+  .card-grid{display:flex;flex-wrap:wrap;gap:6px;}
+  .pickcard{
+    width:40px;height:54px;border-radius:5px;background:var(--cream);color:var(--ink);
+    display:flex;align-items:center;justify-content:center;flex-direction:column;
+    font-weight:700;font-size:13px;cursor:pointer;border:2px solid transparent;
+    box-shadow:0 2px 4px rgba(0,0,0,0.3);user-select:none;
+  }
+  .pickcard.red{color:var(--red-suit);}
+  .pickcard.selected{border-color:var(--gold-bright);transform:translateY(-4px);box-shadow:0 5px 10px rgba(0,0,0,0.4);}
+  .pickcard.used{opacity:0.18;pointer-events:none;}
+  .pickcard .suit-ic{font-size:11px;margin-top:1px;}
+
+  .counter-line{font-size:12.5px;color:rgba(242,234,217,0.7);margin:8px 0;text-align:center;}
+  .counter-line b{color:var(--gold-bright);}
+
+  .stepper-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(212,175,106,0.15);}
+  .stepper-row:last-child{border-bottom:none;}
+  .stepper-row .nm{font-size:13.5px;}
+  .stepper{display:flex;align-items:center;gap:10px;}
+  .stepper button{width:28px;height:28px;border-radius:50%;border:1px solid var(--gold);background:transparent;color:var(--gold-bright);font-size:15px;cursor:pointer;}
+  .stepper .val{min-width:22px;text-align:center;font-weight:700;}
+
+  /* ---- table layout ---- */
+  .table-wrap{
+    display:grid;
+    grid-template-areas:"top top top" "left center right" "you you you";
+    grid-template-rows:auto auto auto;
+    grid-template-columns:1fr 1.6fr 1fr;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .seat{
+    background:rgba(8,32,27,0.55);border:1px solid rgba(212,175,106,0.25);
+    border-radius:10px;padding:9px 10px;text-align:center;position:relative;
+  }
+  .seat.active{border-color:var(--gold-bright);box-shadow:0 0 0 2px rgba(212,175,106,0.25);}
+  .seat.finished{opacity:0.4;}
+  .seat .sname{font-size:11.5px;color:rgba(242,234,217,0.7);text-transform:uppercase;letter-spacing:0.05em;}
+  .seat .scount{font-size:19px;font-weight:700;color:var(--gold-bright);margin-top:2px;}
+  .seat .scount .u{font-size:10px;color:rgba(242,234,217,0.5);font-weight:400;}
+  .seat .badge{position:absolute;top:-8px;right:-6px;background:var(--gold-bright);color:var(--ink);font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:10px;}
+  .seat.top{grid-area:top;}
+  .seat.left{grid-area:left;}
+  .seat.right{grid-area:right;}
+
+  .center-area{
+    grid-area:center;background:rgba(8,32,27,0.35);border:1px dashed rgba(212,175,106,0.35);
+    border-radius:10px;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;
+  }
+  .center-area .turn-label{font-size:11px;color:rgba(242,234,217,0.55);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;}
+  .center-cards{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;}
+  .minicard{
+    min-width:26px;height:36px;background:var(--cream);color:var(--ink);border-radius:4px;
+    display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;padding:0 3px;
+  }
+  .minicard.red{color:var(--red-suit);}
+  .free-lead-tag{font-size:12.5px;color:var(--safe);font-weight:700;}
+
+  .you-area{grid-area:you;margin-top:4px;}
+
+  .hand-strip{display:flex;gap:5px;overflow-x:auto;padding:10px 2px 6px;}
+  .handcard{
+    min-width:42px;height:58px;background:var(--cream);color:var(--ink);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;font-weight:700;font-size:14px;
+    cursor:pointer;border:2px solid transparent;flex-shrink:0;box-shadow:0 2px 4px rgba(0,0,0,0.3);
+  }
+  .handcard.red{color:var(--red-suit);}
+  .handcard.selected{border-color:var(--gold-bright);transform:translateY(-8px);}
+
+  .action-row{display:flex;gap:8px;margin-top:8px;}
+  .action-row button{flex:1;padding:12px 6px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;text-transform:uppercase;letter-spacing:0.03em;}
+  .btn-play{background:linear-gradient(180deg,var(--gold-bright),var(--gold));color:var(--ink);}
+  .btn-pass{background:rgba(242,234,217,0.1);border:1px solid rgba(212,175,106,0.4)!important;color:var(--cream);}
+  .btn-suggest{background:rgba(95,158,111,0.18);border:1px solid var(--safe)!important;color:var(--safe);}
+  .action-row button:disabled{opacity:0.35;}
+
+  .suggest-panel{
+    background:rgba(212,175,106,0.1);border:1px solid var(--gold);border-radius:8px;padding:12px 13px;margin-top:10px;font-size:13px;line-height:1.55;
+  }
+  .suggest-panel h4{margin:0 0 6px;font-size:11.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold-bright);}
+  .tactic-tag{display:inline-block;font-size:10.5px;background:rgba(212,175,106,0.15);border:1px solid rgba(212,175,106,0.4);color:var(--gold-bright);padding:2px 7px;border-radius:5px;margin:2px 4px 2px 0;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:700;margin-left:4px;}
+  .pill.safe{background:rgba(95,158,111,0.2);color:var(--safe);border:1px solid var(--safe);}
+  .pill.warn{background:rgba(201,154,63,0.2);color:var(--warn);border:1px solid var(--warn);}
+  .pill.danger{background:rgba(193,85,63,0.2);color:var(--danger);border:1px solid var(--danger);}
+
+  .opp-picker{margin-top:8px;}
+  .opp-picker .hint{font-size:11.5px;color:rgba(242,234,217,0.55);margin-bottom:8px;}
+
+  .err-line{background:rgba(193,85,63,0.15);border:1px solid var(--danger);color:#f0b3a5;padding:8px 10px;border-radius:6px;font-size:12.5px;margin-top:10px;}
+  .log-panel{max-height:120px;overflow-y:auto;font-size:11.5px;color:rgba(242,234,217,0.55);background:rgba(0,0,0,0.15);border-radius:6px;padding:8px 10px;margin-top:10px;}
+  .log-panel div{padding:2px 0;}
+
+  .final-rank{font-size:15px;padding:10px 0;border-bottom:1px solid rgba(212,175,106,0.15);}
+  .final-rank:last-child{border-bottom:none;}
+  .final-rank b{color:var(--gold-bright);}
+
+  @media (min-width:720px){
+    .table-wrap{grid-template-columns:1fr 2fr 1fr;}
+    .center-area{min-height:130px;}
+    .handcard{min-width:50px;height:68px;font-size:16px;}
+  }
+  @media (max-width:480px){
+    .table-wrap{grid-template-columns:0.9fr 1.4fr 0.9fr;gap:6px;}
+    .seat{padding:7px 6px;}
+    .seat .scount{font-size:16px;}
+  }
+</style>
+</head>
+<body>
+<div class="screen" id="app"></div>
+
+<script>
+/* ============================================================
+   CARD MODEL & ENGINE (giữ nguyên logic gốc)
+============================================================ */
+const RANKS = ["3","4","5","6","7","8","9","10","J","Q","K","A","2"];
+const RANK_VALUE = {"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"10":10,"J":11,"Q":12,"K":13,"A":14,"2":15};
+const SUITS = ["B","CC","R","C"];
+const SUIT_VALUE = {"B":1,"CC":2,"R":3,"C":4};
+const SUIT_SYMBOL = {"B":"♠","CC":"♣","R":"♦","C":"♥"};
+const SUIT_NAME = {"B":"Bích","CC":"Chuồn","R":"Rô","C":"Cơ"};
+const RED_SUITS = new Set(["R","C"]);
+
+class Card{
+  constructor(rank,suit){
+    this.rank=rank; this.suit=suit;
+    this.rankValue=RANK_VALUE[rank]; this.suitValue=SUIT_VALUE[suit];
+    this.power=this.rankValue*10+this.suitValue;
+  }
+  get id(){return this.rank+this.suit;}
+  get display(){return this.rank+SUIT_SYMBOL[this.suit];}
+  get isRed(){return RED_SUITS.has(this.suit);}
+}
+function buildFullDeck(){const d=[];for(const r of RANKS)for(const s of SUITS)d.push(new Card(r,s));return d;}
+function cardById(id){for(const r of RANKS)for(const s of SUITS)if(r+s===id)return new Card(r,s);return null;}
+
+class Hand{
+  constructor(cards){this.cards=[...cards].sort((a,b)=>a.power-b.power);}
+  byRank(){const m={};for(const c of this.cards){if(!m[c.rank])m[c.rank]=[];m[c.rank].push(c);}return m;}
+  findStraights(){
+    const singles={};
+    for(const c of this.cards){if(c.rank==="2")continue;if(!singles[c.rank])singles[c.rank]=c;}
+    const runs=[];let run=[];
+    for(let i=0;i<RANKS.length-1;i++){
+      const r=RANKS[i]; if(r==="2")continue;
+      if(singles[r])run.push(r); else{if(run.length>=3)runs.push([...run]);run=[];}
+    }
+    if(run.length>=3)runs.push([...run]);
+    const straights=[];
+    for(const run of runs){
+      for(let len=3;len<=run.length;len++){
+        for(let start=0;start+len<=run.length;start++){
+          straights.push(run.slice(start,start+len).map(r=>singles[r]));
+        }
+      }
+    }
+    return straights;
+  }
+  findPairs(){const m=this.byRank();const out=[];for(const r in m)if(m[r].length>=2)out.push(m[r].slice(0,2));return out;}
+  findTriples(){const m=this.byRank();const out=[];for(const r in m)if(m[r].length>=3)out.push(m[r].slice(0,3));return out;}
+  findQuads(){const m=this.byRank();const out=[];for(const r in m)if(m[r].length===4)out.push(m[r]);return out;}
+  findPairStraights(n){
+    const m=this.byRank();const out=[];
+    for(let i=0;i<RANKS.length-n+1;i++){
+      const w=RANKS.slice(i,i+n); if(w.includes("2"))continue;
+      if(w.every(r=>m[r]&&m[r].length>=2))out.push(w.map(r=>m[r].slice(0,2)));
+    }
+    return out;
+  }
+  breakdown(){
+    return {
+      pairs:this.findPairs(), triples:this.findTriples(), quads:this.findQuads(),
+      straights:this.findStraights().filter(s=>s.length>=3),
+      threePairStraights:this.findPairStraights(3), fourPairStraights:this.findPairStraights(4),
+    };
+  }
+}
+
+const ComboType={SINGLE:"SINGLE",PAIR:"PAIR",TRIPLE:"TRIPLE",QUAD:"QUAD",STRAIGHT:"STRAIGHT",THREE_PAIR:"THREE_PAIR_STRAIGHT",FOUR_PAIR:"FOUR_PAIR_STRAIGHT",UNKNOWN:"UNKNOWN"};
+
+function classifyCombo(cards){
+  if(!cards||cards.length===0)return{type:ComboType.UNKNOWN,power:0,cards:[]};
+  const sorted=[...cards].sort((a,b)=>a.power-b.power);
+  const ranks=sorted.map(c=>c.rank); const uniq=[...new Set(ranks)];
+  if(sorted.length===1)return{type:ComboType.SINGLE,power:sorted[0].power,cards:sorted};
+  if(sorted.length===2&&uniq.length===1)return{type:ComboType.PAIR,power:sorted[1].power,cards:sorted};
+  if(sorted.length===3&&uniq.length===1)return{type:ComboType.TRIPLE,power:sorted[2].power,cards:sorted};
+  if(sorted.length===4&&uniq.length===1)return{type:ComboType.QUAD,power:sorted[3].power,cards:sorted};
+  if(sorted.length>=3&&uniq.length===sorted.length&&!ranks.includes("2")){
+    const idxs=ranks.map(r=>RANKS.indexOf(r)).sort((a,b)=>a-b);
+    let c=true; for(let i=1;i<idxs.length;i++)if(idxs[i]!==idxs[i-1]+1){c=false;break;}
+    if(c)return{type:ComboType.STRAIGHT,power:sorted[sorted.length-1].power,cards:sorted};
+  }
+  if(sorted.length===6||sorted.length===8){
+    const m={};sorted.forEach(c=>{m[c.rank]=(m[c.rank]||0)+1;});
+    const rks=Object.keys(m); const n=sorted.length/2;
+    if(rks.length===n&&rks.every(r=>m[r]===2)&&!rks.includes("2")){
+      const idxs=rks.map(r=>RANKS.indexOf(r)).sort((a,b)=>a-b);
+      let c=true; for(let i=1;i<idxs.length;i++)if(idxs[i]!==idxs[i-1]+1){c=false;break;}
+      if(c){
+        const topRank=RANKS[idxs[idxs.length-1]];
+        const topCards=sorted.filter(c=>c.rank===topRank);
+        return{type:n===3?ComboType.THREE_PAIR:ComboType.FOUR_PAIR,power:Math.max(...topCards.map(c=>c.power)),cards:sorted};
+      }
+    }
+  }
+  return{type:ComboType.UNKNOWN,power:0,cards:sorted};
+}
+
+function countPossibleQuads(unk){const m={};unk.forEach(c=>{m[c.rank]=(m[c.rank]||0)+1;});let n=0;for(const r in m)if(m[r]===4)n++;return n;}
+function countPossibleNPairStraights(unk,n){
+  const m={};unk.forEach(c=>{m[c.rank]=(m[c.rank]||0)+1;});let cnt=0;
+  for(let i=0;i<RANKS.length-n+1;i++){const w=RANKS.slice(i,i+n);if(w.includes("2"))continue;if(w.every(r=>(m[r]||0)>=2))cnt++;}
+  return cnt;
+}
+function combinationRatio(unknownCount,handSize,k){
+  if(handSize<k)return 0; let p=1;
+  for(let i=0;i<k;i++)p*=(handSize-i)/(unknownCount-i);
+  return Math.max(0,Math.min(1,p));
+}
+// P(ít nhất 1 trong K lá "đánh dấu" nằm trong tay handSize lá, rút từ pool poolSize lá)
+function hyperAtLeastOne(poolSize, K, handSize){
+  if(K<=0 || poolSize<=0 || handSize<=0) return 0;
+  if(poolSize - K < handSize) return 1;
+  let pNone = 1;
+  for(let i=0;i<handSize;i++){
+    pNone *= (poolSize - K - i) / (poolSize - i);
+    if(pNone<=0){ pNone=0; break; }
+  }
+  return Math.max(0, Math.min(1, 1 - pNone));
+}
+function comboProbabilityForOpponent(handSize,unknownCount,combosPossible){
+  if(unknownCount<=0||combosPossible<=0)return 0;
+  const single=combinationRatio(unknownCount,handSize,4);
+  return Math.min(1-Math.pow(1-single,combosPossible),0.97);
+}
+// Bản tổng quát: k = số lá cụ thể cần "trúng" trọn trong tay đối thủ để có cấu trúc đó
+function comboProbabilityForOpponentGeneric(handSize, poolSize, combosPossible, k){
+  if(poolSize<=0||combosPossible<=0) return 0;
+  const single = combinationRatio(poolSize, handSize, k);
+  return Math.min(1-Math.pow(1-single, combosPossible), 0.97);
+}
+function countPossibleStraightsOfLength(unk, L){
+  const rankSet = new Set(unk.map(c=>c.rank));
+  let count=0;
+  for(let i=0;i<RANKS.length-L+1;i++){
+    const w = RANKS.slice(i,i+L);
+    if(w.includes('2')) continue;
+    if(w.every(r=>rankSet.has(r))) count++;
+  }
+  return count;
+}
+function evaluatePigSafety(unknownCards,opponents,bombSuspect){
+  const pQ=countPossibleQuads(unknownCards), p3=countPossibleNPairStraights(unknownCards,3), p4=countPossibleNPairStraights(unknownCards,4);
+  if(pQ===0&&p3===0&&p4===0)return{safe:true,riskLevel:0,action:"ALLOW_PLAY_PIG",possibleQuads:pQ,possible3Pair:p3,possible4Pair:p4,floorClean:true};
+  let total=0; const per=[];
+  for(const opp of opponents){
+    if(!opp.count||opp.count<=0)continue;
+    if(opp.provenNoBomb){ per.push({name:opp.name,risk:0}); continue; }
+    let pq=comboProbabilityForOpponent(opp.count,unknownCards.length,pQ);
+    let p3o=comboProbabilityForOpponent(opp.count,unknownCards.length,p3);
+    if(bombSuspect){pq=Math.min(pq*1.5,0.97);p3o=Math.min(p3o*1.5,0.97);}
+    const r=Math.max(pq,p3o); per.push({name:opp.name,risk:r}); total+=r;
+  }
+  const action= total>=0.5?"DANGER_BLOCK_PIG":"ALLOW_PLAY_PIG_PROBABLE";
+  return{safe:total<0.5,riskLevel:total*100,action,possibleQuads:pQ,possible3Pair:p3,possible4Pair:p4,floorClean:false,perOpponent:per};
+}
+
+const CHOP_MATRIX={
+  SINGLE_2:["THREE_PAIR_STRAIGHT","QUAD","FOUR_PAIR_STRAIGHT"],
+  PAIR_2:["QUAD","FOUR_PAIR_STRAIGHT"],
+  THREE_PAIR_STRAIGHT:["THREE_PAIR_STRAIGHT","QUAD","FOUR_PAIR_STRAIGHT"],
+  QUAD:["QUAD","FOUR_PAIR_STRAIGHT"],
+  FOUR_PAIR_STRAIGHT:["FOUR_PAIR_STRAIGHT"],
+};
+function buildAllPlayableCombos(hand){
+  const b=hand.breakdown(); const combos=[];
+  hand.cards.forEach(c=>combos.push(classifyCombo([c])));
+  b.pairs.forEach(p=>combos.push(classifyCombo(p)));
+  b.triples.forEach(t=>combos.push(classifyCombo(t)));
+  b.quads.forEach(q=>combos.push(classifyCombo(q)));
+  b.straights.forEach(s=>combos.push(classifyCombo(s)));
+  b.threePairStraights.forEach(g=>combos.push(classifyCombo(g.flat())));
+  b.fourPairStraights.forEach(g=>combos.push(classifyCombo(g.flat())));
+  return combos;
+}
+function selectBestMove(hand,gs,pigSafety){
+  const breakdown=hand.breakdown(); const allCombos=buildAllPlayableCombos(hand);
+  const notes=[]; const tacticsUsed=[];
+
+  if(gs.holder==="you"||!gs.lastPlay||gs.lastPlay.type===ComboType.UNKNOWN){
+    const reportingOpp=gs.opponents.find(o=>o.count===1);
+    if(reportingOpp){
+      tacticsUsed.push("TACTIC_16 – Khóa Chặt Nhà Báo Bài");
+      notes.push(`${reportingOpp.name} chỉ còn 1 lá. Không đánh rác nhỏ — chỉ Lẻ bự nhất hoặc chuyển Đôi/Sảnh.`);
+      const bigSingles=allCombos.filter(c=>c.type===ComboType.SINGLE).sort((a,b)=>b.power-a.power);
+      const pairsSorted=allCombos.filter(c=>c.type===ComboType.PAIR).sort((a,b)=>b.power-a.power);
+      const cand=pairsSorted[0]||bigSingles[0];
+      if(cand)return{combo:cand,tactics:tacticsUsed,notes,headline:"Chặn nhà báo bài"};
+    }
+    const isEarly=gs.historyCount<8;
+    if(isEarly){
+      const smallPairs=allCombos.filter(c=>c.type===ComboType.PAIR&&c.power<70).sort((a,b)=>a.power-b.power);
+      const smallSingles=allCombos.filter(c=>c.type===ComboType.SINGLE&&c.power<70).sort((a,b)=>a.power-b.power);
+      if(smallPairs.length){tacticsUsed.push("TACTIC_10 – Tẩy Rác Đầu Game");notes.push("Đầu ván: dọn đôi rác nhỏ trước.");return{combo:smallPairs[0],tactics:tacticsUsed,notes,headline:"Dọn rác đầu ván"};}
+      if(smallSingles.length){tacticsUsed.push("TACTIC_10 – Tẩy Rác Đầu Game");notes.push("Đầu ván: xả lẻ rác nhỏ nhất.");return{combo:smallSingles[0],tactics:tacticsUsed,notes,headline:"Dọn rác đầu ván"};}
+    }
+    const straightsSorted=[...breakdown.straights].sort((a,b)=>b.length-a.length);
+    if(hand.cards.length<=6&&straightsSorted.length){
+      tacticsUsed.push("TACTIC_08 – Tái Cấu Trúc Động (TTW)");
+      notes.push("Bài ngắn — xả sảnh dài nhất để giảm số lượt về đích.");
+      return{combo:classifyCombo(straightsSorted[0]),tactics:tacticsUsed,notes,headline:"Rút ngắn lượt về đích"};
+    }
+    const onlySingle2=allCombos.filter(c=>c.type===ComboType.SINGLE&&c.cards[0].rank==="2");
+    const nonTwo=allCombos.filter(c=>!(c.type===ComboType.SINGLE&&c.cards[0].rank==="2"));
+    if(nonTwo.length===0&&onlySingle2.length){
+      tacticsUsed.push("TACTIC_01 – Quy Tắc Thả Heo Sinh Tử");
+      if(!pigSafety.safe){notes.push(`CẢNH BÁO: rủi ro chặt Heo ${pigSafety.riskLevel.toFixed(0)}%.`);return{combo:onlySingle2[0],tactics:tacticsUsed,notes,headline:"Buộc thả Heo — rủi ro cao",danger:true};}
+      notes.push(`${pigSafety.floorClean?"Sàn sạch 100%":"Rủi ro thấp ("+pigSafety.riskLevel.toFixed(0)+"%)"} — an toàn để thả Heo.`);
+      return{combo:onlySingle2[0],tactics:tacticsUsed,notes,headline:"Thả Heo an toàn"};
+    }
+    const singlesSorted=allCombos.filter(c=>c.type===ComboType.SINGLE&&c.cards[0].rank!=="2").sort((a,b)=>a.power-b.power);
+    if(singlesSorted.length){tacticsUsed.push("TACTIC_04 – Bẫy Hàng / Giấu Hàng");notes.push("Giữ cái tự do: xả lẻ nhỏ, giữ kín cấu trúc bộ/sảnh.");return{combo:singlesSorted[0],tactics:tacticsUsed,notes,headline:"Xả rác giữ bài kín"};}
+    const pairsSorted=allCombos.filter(c=>c.type===ComboType.PAIR).sort((a,b)=>a.power-b.power);
+    if(pairsSorted.length)return{combo:pairsSorted[0],tactics:["TACTIC_04"],notes:["Không còn lẻ — mở đôi nhỏ nhất."],headline:"Mở đôi nhỏ"};
+    return{combo:null,tactics:[],notes:["Không có nước đi hợp lệ — Pass."],headline:"Pass"};
+  }
+
+  const lp=gs.lastPlay;
+  const isTargetingBareTwo=lp.type===ComboType.SINGLE&&lp.cards[0].rank==="2";
+  const isTargetingPairTwo=lp.type===ComboType.PAIR&&lp.cards[0].rank==="2";
+  let candidates=[];
+  if(isTargetingBareTwo){tacticsUsed.push("Ma Trận Đè Hàng — Single 2");candidates=allCombos.filter(c=>CHOP_MATRIX.SINGLE_2.includes(c.type));}
+  else if(isTargetingPairTwo){tacticsUsed.push("Ma Trận Đè Hàng — Pair 2");candidates=allCombos.filter(c=>CHOP_MATRIX.PAIR_2.includes(c.type)&&c.type!==ComboType.THREE_PAIR);}
+  else if(lp.type===ComboType.THREE_PAIR)candidates=allCombos.filter(c=>CHOP_MATRIX.THREE_PAIR_STRAIGHT.includes(c.type)&&c.power>lp.power);
+  else if(lp.type===ComboType.QUAD)candidates=allCombos.filter(c=>CHOP_MATRIX.QUAD.includes(c.type)&&c.power>lp.power);
+  else if(lp.type===ComboType.FOUR_PAIR)candidates=allCombos.filter(c=>CHOP_MATRIX.FOUR_PAIR_STRAIGHT.includes(c.type)&&c.power>lp.power);
+  else candidates=allCombos.filter(c=>c.type===lp.type&&c.power>lp.power&&c.cards.length===lp.cards.length);
+
+  if(candidates.length===0)return{combo:null,tactics:["Không có bộ hợp lệ"],notes:["Không đè được — Pass."],headline:"Pass — không đè được"};
+  candidates.sort((a,b)=>a.power-b.power);
+
+  const nearOutOpp=gs.opponents.find(o=>o.count<=2);
+  if(nearOutOpp){
+    tacticsUsed.push("TACTIC_02 – Đóng Bằng Cái (Turn Hijacking)");
+    const strongest=candidates[candidates.length-1];
+    notes.push(`${nearOutOpp.name} chỉ còn ${nearOutOpp.count} lá — cướp cái ngay bằng bài mạnh nhất.`);
+    return{combo:strongest,tactics:tacticsUsed,notes,headline:"Cướp cái khẩn cấp"};
+  }
+  const cheapest=candidates[0];
+  if(cheapest.type===ComboType.SINGLE&&cheapest.cards[0].rank==="2"){
+    tacticsUsed.push("TACTIC_01 – Quy Tắc Thả Heo Sinh Tử");
+    if(!pigSafety.safe){
+      const alt=candidates.find(c=>!(c.type===ComboType.SINGLE&&c.cards[0].rank==="2"));
+      if(alt){notes.push(`Rủi ro Heo ${pigSafety.riskLevel.toFixed(0)}% — chọn phương án khác thay vì thả 2.`);return{combo:alt,tactics:tacticsUsed,notes,headline:"Né rủi ro Heo"};}
+      notes.push(`CẢNH BÁO: buộc dùng Heo, rủi ro bị chặt ${pigSafety.riskLevel.toFixed(0)}%.`);
+      return{combo:cheapest,tactics:tacticsUsed,notes,headline:"Thả Heo — rủi ro cao",danger:true};
+    }
+  }
+  tacticsUsed.push("TACTIC_05 – Ép Nhà Trên / Bảo Toàn Bài Bự");
+  notes.push("Dùng bộ vừa đủ để đè, giữ bài lớn hơn cho vòng sau.");
+  return{combo:cheapest,tactics:tacticsUsed,notes,headline:"Đè bài — tiết kiệm lực"};
+}
+function comboLabel(t){return{SINGLE:"Lẻ",PAIR:"Đôi",TRIPLE:"Bộ Ba",QUAD:"Tứ Quý",STRAIGHT:"Sảnh",THREE_PAIR_STRAIGHT:"3 Đôi Thông",FOUR_PAIR_STRAIGHT:"4 Đôi Thông",PASS:"Bỏ lượt",UNKNOWN:"?"}[t]||t;}
+
+/* ============================================================
+   SUY LUẬN ĐỐI THỦ (Player Read Engine)
+   Dựa trên Tactic 03 (Trừ Lùi Cấu Trúc), Tactic 15/19 (Đọc Vị Nhịp Độ & Bỏ Lượt)
+   Vì Tiến Lên không bốc thêm bài, "không có X" đã suy ra thì luôn đúng đến hết ván.
+============================================================ */
+function rankLabelFromPower(power){
+  const rv = Math.floor(power/10);
+  return RANKS.find(r=>RANK_VALUE[r]===rv) || '?';
+}
+function inferOpponent(seatId){
+  const log = state.playerLog[seatId] || [];
+  const playedCards = [];
+  const genericThreshold = {}; // "TYPE|LEN" -> min power đã từng bỏ lượt (không có gì lớn hơn ngưỡng này)
+  let noQuad=false, noThreePair=false, noFourPair=false;
+  let passStreak=0, lastKind=null;
+
+  for(const ev of log){
+    if(ev.kind==='play'){
+      ev.cards.forEach(id=>{ const c=cardById(id); if(c) playedCards.push(c); });
+      passStreak=0; lastKind='play';
+    } else if(ev.kind==='pass'){
+      const t=ev.facedComboType, len=ev.facedComboLen, pw=ev.facedComboPower;
+      const isBareTwo = t==='SINGLE' && pw>=151;
+      const isPairTwo = t==='PAIR' && pw>=151;
+      if(isBareTwo){ noQuad=true; noThreePair=true; noFourPair=true; }
+      else if(isPairTwo){ noQuad=true; noFourPair=true; }
+      else if(t==='THREE_PAIR_STRAIGHT'){
+        noQuad=true; noFourPair=true;
+        const k=t+'|'+len; genericThreshold[k]=Math.min(genericThreshold[k]??Infinity, pw);
+      } else if(t==='QUAD'){
+        noFourPair=true;
+        const k=t+'|'+len; genericThreshold[k]=Math.min(genericThreshold[k]??Infinity, pw);
+      } else {
+        const k=t+'|'+len; genericThreshold[k]=Math.min(genericThreshold[k]??Infinity, pw);
+      }
+      passStreak = lastKind==='pass' ? passStreak+1 : 1;
+      lastKind='pass';
+    }
+  }
+
+  const bullets=[];
+  for(const k in genericThreshold){
+    const [type,len] = k.split('|');
+    const rankLabel = rankLabelFromPower(genericThreshold[k]);
+    const lenTag = type==='STRAIGHT' ? ` ${len} lá` : '';
+    bullets.push(`Không có ${comboLabel(type)}${lenTag} lớn hơn ${rankLabel}`);
+  }
+  if(noQuad && noThreePair && noFourPair) bullets.push('Không có bất kỳ Bom nào (Tứ Quý / 3 Đôi Thông / 4 Đôi Thông)');
+  else {
+    if(noQuad) bullets.push('Không có Tứ Quý');
+    if(noThreePair) bullets.push('Không có 3 Đôi Thông');
+    if(noFourPair) bullets.push('Không có 4 Đôi Thông');
+  }
+
+  // SUY LUẬN CẤU TRÚC NÂNG CAO: nếu ngưỡng "không có X lớn hơn" thấp (<=rank 8),
+  // khả năng rất cao là họ KHÔNG hề có bộ đó (chứ không chỉ thiếu bản lớn) —
+  // vì nếu có, thường đã dùng để đè một cửa quá dễ như vậy rồi.
+  const STRUCT_CUTOFF_RANKVALUE = 8; // rank "8" trở xuống coi là ngưỡng rất thấp
+  const noStraightLen = {}; // {3:true,4:true,...} = nhiều khả năng không có sảnh độ dài này
+  let weakPair=false, weakTriple=false;
+  for(const k in genericThreshold){
+    const [type,lenStr] = k.split('|');
+    const len = parseInt(lenStr);
+    const rv = Math.floor(genericThreshold[k]/10);
+    const suspiciouslyLow = rv <= STRUCT_CUTOFF_RANKVALUE;
+    if(type==='STRAIGHT' && suspiciouslyLow) noStraightLen[len]=true;
+    if(type==='PAIR' && suspiciouslyLow) weakPair=true;
+    if(type==='TRIPLE' && suspiciouslyLow) weakTriple=true;
+  }
+  const structBullets=[];
+  Object.keys(noStraightLen).forEach(len=>structBullets.push(`Nhiều khả năng KHÔNG còn Sảnh ${len} lá`));
+  if(weakPair) structBullets.push('Nhiều khả năng rất ít hoặc không còn Đôi lớn');
+  if(weakTriple) structBullets.push('Nhiều khả năng rất ít hoặc không còn Bộ Ba lớn');
+
+  const hoarding = passStreak>=2 && (state.seats.find(s=>s.id===seatId)?.count||0) >= 6;
+  return {playedCards, bullets, structBullets, noStraightLen, weakPair, weakTriple, noQuad, noThreePair, noFourPair, hoarding, passStreak};
+}
+
+function cardCountingReport(){
+  const visible = [...state.yourHand, ...state.history];
+  const counts={};
+  for(const r of RANKS) counts[r]=0;
+  visible.forEach(c=>{counts[c.rank]++;});
+  const fully = RANKS.filter(r=>counts[r]===4);
+  const almost = RANKS.filter(r=>counts[r]===3);
+  return {counts, fully, almost};
+}
+
+/* ============================================================
+   SIÊU SUY LUẬN: lối chơi + xác suất giữ từng rank
+============================================================ */
+function classifyPlaystyle(seatId){
+  const log = state.playerLog[seatId]||[];
+  let totalPlays=0, straightPlays=0, pairPlays=0, singlePlays=0, bigCardPlays=0, passes=0;
+  log.forEach(ev=>{
+    if(ev.kind==='play'){
+      totalPlays++;
+      if(ev.comboType==='STRAIGHT') straightPlays++;
+      if(ev.comboType==='PAIR') pairPlays++;
+      if(ev.comboType==='SINGLE') singlePlays++;
+      if(ev.comboPower>=131) bigCardPlays++; // K trở lên
+    } else passes++;
+  });
+  const seat = state.seats.find(s=>s.id===seatId);
+  const tags=[];
+  if(totalPlays>0 && straightPlays/totalPlays>=0.4) tags.push('🃏 Thiên về Sảnh — hay xả theo sảnh dài');
+  if(passes>=2 && totalPlays<=1) tags.push('🛡️ Phòng thủ — giữ bài kín, ít chịu xả');
+  if(passes>=3 && seat && seat.count>=6) tags.push('💣 Có dấu hiệu Ôm Cây/Bom — bỏ lượt nhiều mà bài vẫn dày');
+  if(bigCardPlays>=2) tags.push('⚔️ Tấn công sớm — hay dùng lá lớn để giữ cái');
+  if(totalPlays>0 && pairPlays/totalPlays>=0.4) tags.push('👯 Thiên về Đôi — hay xả theo cặp');
+  if(tags.length===0) tags.push('Chưa đủ dữ liệu để nhận diện lối chơi rõ ràng');
+  return tags;
+}
+
+function rankHoldProbabilities(seatId){
+  const seat = state.seats.find(s=>s.id===seatId);
+  if(!seat) return [];
+  const unk = unknownDeck();
+  const visible = [...state.yourHand, ...state.history];
+  const visibleCount = {}; RANKS.forEach(r=>visibleCount[r]=0);
+  visible.forEach(c=>visibleCount[c.rank]++);
+  const out=[];
+  for(const r of RANKS){ // 3..2, đủ 13 rank
+    const hidden = 4 - visibleCount[r];
+    if(hidden<=0){ out.push({rank:r, hidden:0, prob:0, known:true}); continue; }
+    const p = hyperAtLeastOne(unk.length, hidden, seat.count);
+    out.push({rank:r, hidden, prob:p, known:false});
+  }
+  return out; // giữ nguyên thứ tự 3→2
+}
+function rankHoldProbabilitiesTop(seatId, n){
+  return rankHoldProbabilities(seatId).filter(x=>!x.known).sort((a,b)=>b.prob-a.prob).slice(0,n||6);
+}
+
+// Xác suất đối thủ đang cầm Bom (3 Đôi Thông / Tứ Quý / 4 Đôi Thông), có tính lối chơi
+function bombProbabilities(seatId, unk){
+  const seat = state.seats.find(s=>s.id===seatId);
+  const inf = inferOpponent(seatId);
+  const style = classifyPlaystyle(seatId);
+  const hoardTag = style.some(t=>t.includes('Ôm Cây/Bom'));
+  const straightTag = style.some(t=>t.includes('Thiên về Sảnh'));
+  const possible3 = countPossibleNPairStraights(unk,3);
+  const possibleQuad = countPossibleQuads(unk);
+  const possible4 = countPossibleNPairStraights(unk,4);
+  let p3 = inf.noThreePair ? 0 : comboProbabilityForOpponent(seat.count, unk.length, possible3);
+  let pQuad = inf.noQuad ? 0 : comboProbabilityForOpponent(seat.count, unk.length, possibleQuad);
+  let p4 = inf.noFourPair ? 0 : comboProbabilityForOpponent(seat.count, unk.length, possible4);
+  if(hoardTag){ p3=Math.min(p3*1.35,0.95); pQuad=Math.min(pQuad*1.35,0.95); p4=Math.min(p4*1.3,0.95); }
+  if(straightTag){ p3=Math.min(p3*1.1,0.95); }
+  if(state.bombSuspect){ p3=Math.min(p3*1.2,0.97); pQuad=Math.min(pQuad*1.2,0.97); p4=Math.min(p4*1.15,0.97); }
+  return {p3, pQuad, p4};
+}
+
+// Lá / bộ mạnh nhất còn "sống" trong ván (chưa ai đánh ra), bất kể ai đang giữ
+function globalStrongestAnalysis(){
+  const playedIds = new Set(state.history.map(c=>c.id));
+  const remaining = buildFullDeck().filter(c=>!playedIds.has(c.id)).sort((a,b)=>b.power-a.power);
+  const strongestSingle = remaining[0] || null;
+
+  const remByRank = {}; RANKS.forEach(r=>remByRank[r]=[]);
+  remaining.forEach(c=>remByRank[c.rank].push(c));
+
+  let strongestPairRank=null, strongestTripleRank=null;
+  for(let i=RANKS.length-1;i>=0;i--){
+    const r=RANKS[i];
+    if(!strongestPairRank && remByRank[r].length>=2) strongestPairRank=r;
+    if(!strongestTripleRank && remByRank[r].length>=3) strongestTripleRank=r;
+  }
+  let bestStraightEnd=null, bestStraightLen=0, run=0, runEnd=null;
+  for(let i=0;i<RANKS.length-1;i++){
+    const r=RANKS[i]; if(r==='2'){run=0;continue;}
+    if(remByRank[r].length>=1){ run++; runEnd=r; } else run=0;
+    if(run>=3 && run>=bestStraightLen){ bestStraightLen=run; bestStraightEnd=runEnd; }
+  }
+
+  // xem ai đang giữ lá/bộ mạnh nhất (nếu là bài của bạn thì biết chắc, ngược lại là ẩn)
+  const whoHolds = (card)=>{
+    if(!card) return null;
+    if(state.yourHand.some(c=>c.id===card.id)) return 'Bạn đang giữ';
+    return 'Đang ẩn trong bài đối thủ';
+  };
+
+  let chopRisk = null;
+  if(strongestSingle && strongestSingle.rank==='2' && whoHolds(strongestSingle)!=='Bạn đang giữ'){
+    const unk = unknownDeck();
+    const activeOpponents = state.seats.filter(s=>s.id!=='you' && !s.finished).map(s=>{
+      const inf = inferOpponent(s.id);
+      return {name:s.label, count:s.count, provenNoBomb: inf.noQuad && inf.noThreePair && inf.noFourPair};
+    });
+    chopRisk = evaluatePigSafety(unk, activeOpponents, state.bombSuspect).riskLevel;
+  }
+
+  return {
+    strongestSingle: strongestSingle ? {card:strongestSingle, holder:whoHolds(strongestSingle), chopRisk} : null,
+    strongestPairRank, strongestTripleRank,
+    strongestStraight: bestStraightEnd ? {endRank:bestStraightEnd, len:bestStraightLen} : null,
+  };
+}
+
+/* ============================================================
+   CACHE PHÂN TÍCH — tránh tính lại các phép phân tích nặng (suy luận đối thủ,
+   xác suất Bom, xếp hạng nước đi...) mỗi lần render() được gọi. Chỉ tính lại
+   khi trạng thái bàn thật sự thay đổi (bài trên tay, ai vừa ra/bỏ lượt, ai
+   đang cầm cái, cờ nghi ngờ Bom...). Nhiều màn hình cùng gọi các hàm này
+   trong cùng 1 lượt (panel gợi ý nhanh, panel suy luận, Siêu Gợi Ý AI) nên
+   cache giúp tiết kiệm đáng kể, đặc biệt trong lúc AI đang chạy mô phỏng.
+============================================================ */
+function gameAnalysisFingerprint(){
+  const playerLogSig = Object.keys(state.playerLog||{}).sort().map(k=>k+':'+state.playerLog[k].length).join(',');
+  return [
+    state.yourHand.map(c=>c.id).slice().sort().join(','),
+    state.history.length,
+    state.tableOwner,
+    state.turnIndex, // phân biệt đúng lượt của ai hiện tại (không chỉ ai đang cầm cái)
+    state.lastPlay ? (state.lastPlay.type+':'+state.lastPlay.power+':'+state.lastPlay.cards.length) : 'none',
+    state.bombSuspect?1:0,
+    state.seats.map(s=>s.id+':'+s.count+':'+(s.finished?1:0)).join('|'),
+    playerLogSig,
+  ].join('||');
+}
+let _superAnalysisCache = {key:null, value:null};
+let _suggestionCache = {key:null, value:null};
+const _rankCandidatesCache = {key:null, value:null};
+
+function computeSuperAnalysis(){
+  const key = gameAnalysisFingerprint();
+  if(_superAnalysisCache.key===key) return _superAnalysisCache.value;
+  const unk = unknownDeck();
+  const activeOpponents = state.seats.filter(s=>s.id!=='you' && !s.finished);
+  const perOpponent = {};
+  activeOpponents.forEach(s=>{
+    perOpponent[s.id] = {
+      label: s.label, count: s.count,
+      inf: inferOpponent(s.id),
+      style: classifyPlaystyle(s.id),
+      bomb: bombProbabilities(s.id, unk),
+    };
+  });
+  const value = {perOpponent, global: globalStrongestAnalysis()};
+  _superAnalysisCache = {key, value};
+  return value;
+}
+
+/* ============================================================
+   AI SUY LUẬN — mô phỏng nhiều biến thể (kiểu tính nước đi cờ vua)
+   rồi tổng hợp thành suy luận tự nhiên, không theo khuôn mẫu cứng.
+   Chạy hoàn toàn cục bộ trong trình duyệt — không phải chatbot,
+   không cần mạng, không "bịa" số liệu: mọi % đều từ mô phỏng thật.
+============================================================ */
+function resolveDepthConfig(){
+  // maxPlies = giới hạn AN TOÀN tối đa (mô phỏng luôn chơi tới khi có người về Nhất/Nhì/Ba/Bét
+  // hoặc chạm giới hạn này thì dừng, không dừng cứng giữa chừng như trước)
+  if(state.aiDepthMode==='fast')   return {iterations:30,   maxPlies:60, label:'Nhanh'};
+  if(state.aiDepthMode==='medium') return {iterations:150,  maxPlies:60, label:'Trung bình'};
+  if(state.aiDepthMode==='deep')   return {iterations:500,  maxPlies:60, label:'Sâu'};
+  if(state.aiDepthMode==='ultra')  return {iterations:1500, maxPlies:60, label:'Cực sâu'};
+  let n = parseInt(state.aiCustomIterations)||50;
+  n = Math.max(5, Math.min(20000, n)); // không giới hạn theo ý bạn, chỉ chặn mềm ở mức rất cao để tránh treo trình duyệt
+  let d = parseInt(state.aiCustomDepth)||10;
+  d = Math.max(2, Math.min(30, d)); // độ sâu tối đa 30 lượt theo yêu cầu
+  return {iterations:n, maxPlies:d, label:'Tuỳ chỉnh'};
+}
+
+function determinizeOpponentHands(activeOpponentSeats, unk, weightByRank){
+  let pool = [...unk];
+  const hands = {}; activeOpponentSeats.forEach(s=>hands[s.id]=[]);
+
+  // Gán xen kẽ từng lá một cho từng đối thủ theo trọng số, tới khi đủ số lá của họ
+  let guard = pool.length * activeOpponentSeats.length + 10;
+  while(pool.length>0 && guard-- > 0){
+    let assignedAny=false;
+    for(const s of activeOpponentSeats){
+      if(hands[s.id].length>=s.count || pool.length===0) continue;
+      const w = weightByRank[s.id];
+      let totalWeight=0;
+      for(const c of pool) totalWeight += (w[c.rank]??0.12);
+      let r = Math.random()*totalWeight;
+      let idx = pool.length-1;
+      for(let i=0;i<pool.length;i++){
+        r -= (w[pool[i].rank]??0.12);
+        if(r<=0){ idx=i; break; }
+      }
+      hands[s.id].push(pool[idx]);
+      pool.splice(idx,1);
+      assignedAny=true;
+    }
+    if(!assignedAny) break;
+  }
+  // phần dư (nếu tổng count khai báo < số lá ẩn) bỏ qua — không dùng tới trong mô phỏng
+  return hands;
+}
+function buildWeightByRank(activeOpponentSeats){
+  const weightByRank = {};
+  activeOpponentSeats.forEach(s=>{
+    const probs = rankHoldProbabilities(s.id);
+    const byRank = {}; probs.forEach(p=>{ byRank[p.rank] = p.known ? 0 : Math.max(0.04, p.prob); });
+    weightByRank[s.id] = byRank;
+  });
+  return weightByRank;
+}
+
+// Phạt nếu 1 nước đi phá vỡ cấu trúc lớn hơn đang có sẵn trong tay (VD: chỉ đánh 3 lá
+// trong khi có sẵn Sảnh 5 lá liền đó, hoặc xé Đôi/Bộ Ba/Tứ Quý ra đánh Lẻ/Đôi nhỏ) —
+// dùng chung cho cả Siêu Gợi Ý (quy tắc) lẫn AI mô phỏng, để AI không "phá sảnh đánh cây" vô tội vạ.
+function structureBreakPenalty(combo, breakdown){
+  let penalty = 0;
+  if(combo.type===ComboType.STRAIGHT){
+    const comboRanks = new Set(combo.cards.map(c=>c.rank));
+    const longer = breakdown.straights.filter(s=>s.length>combo.cards.length && s.some(c=>comboRanks.has(c.rank)));
+    if(longer.length){ penalty += (Math.max(...longer.map(s=>s.length)) - combo.cards.length) * 6; }
+  }
+  if(combo.type===ComboType.SINGLE){
+    const rank = combo.cards[0].rank;
+    if(breakdown.pairs.some(p=>p[0].rank===rank)) penalty += 10;
+    if(breakdown.triples.some(t=>t[0].rank===rank)) penalty += 16;
+    if(breakdown.quads.some(q=>q[0].rank===rank)) penalty += 24;
+  }
+  if(combo.type===ComboType.PAIR){
+    const rank = combo.cards[0].rank;
+    if(breakdown.triples.some(t=>t[0].rank===rank)) penalty += 12;
+    if(breakdown.quads.some(q=>q[0].rank===rank)) penalty += 20;
+  }
+  if(combo.type===ComboType.TRIPLE){
+    const rank = combo.cards[0].rank;
+    if(breakdown.quads.some(q=>q[0].rank===rank)) penalty += 18;
+  }
+  return penalty;
+}
+
+// "Bot" mô phỏng phản ứng đối thủ (và cả bạn ở các lượt tương lai) trong từng biến thể.
+// KHÔNG còn chọn máy móc mỗi bộ RẺ nhất — mà chọn NGẪU NHIÊN có trọng số giữa: đánh gì
+// (ưu tiên rẻ, đúng lối chơi, không phá cấu trúc lớn) HAY bỏ lượt để giữ bài — giống việc
+// một người chơi thật đôi khi giữ lại thay vì chặt ngay, để tạo ra nhiều biến thể khác nhau.
+/* ============================================================
+   3 LỐI CHƠI CHO SIÊU GỢI Ý AI — điều khiển cách "AI tương lai của bạn"
+   tự chơi trong lúc mô phỏng (không ảnh hưởng tới lối chơi mô phỏng của đối thủ,
+   vốn đã dựa trên Siêu Suy Luận riêng của từng người).
+============================================================ */
+// Cấu hình 3 độ khó khi đấu với Bot: số lối chơi được gán ngẫu nhiên cho mỗi bot,
+// và mức độ tính toán (số biến thể mô phỏng + độ sâu) dùng CHÍNH engine Siêu Gợi Ý AI
+// để quyết định nước đi mỗi lượt của bot.
+const BOT_DIFFICULTY = {
+  easy:   {label:'Dễ',         styleCount:[1,2],  iterations:10, maxPlies:18},
+  medium: {label:'Trung bình', styleCount:[2,4],  iterations:35, maxPlies:24},
+  hard:   {label:'Khó',        styleCount:[5,10], iterations:90, maxPlies:30},
+};
+
+const AI_PLAYSTYLES = {
+  fast:        { label:'Thắng nhanh',    icon:'⚡', desc:'Đánh được là đánh — ưu tiên xả nhiều lá nhất mỗi lượt, về đích càng sớm càng tốt, không ngại phá cấu trúc.' },
+  combo:       { label:'Giữ Combo',      icon:'🎴', desc:'Ưu tiên giữ Sảnh/Đôi/Bộ Ba/Bom, chỉ tung ra dồn dập khi bài đã mỏng về cuối ván.' },
+  mechanical:  { label:'Máy móc',        icon:'🤖', desc:'Không thiên kiến phong cách nào cả — chọn hoàn toàn theo điểm số mô phỏng tính toán được, kiểu Stockfish.' },
+  turtle:      { label:'Phòng thủ chắc', icon:'🛡️', desc:'Rất hay bỏ lượt, hạn chế tiêu bài lớn, chỉ ra tay khi thật cần thiết — ưu tiên sống sót lâu hơn là về nhanh.' },
+  blocker:     { label:'Chặn đầu',       icon:'🚧', desc:'Ưu tiên dùng lá/bộ lớn để chặn ngay, đặc biệt nhắm vào việc không cho đối thủ (nhất là người sắp về) dễ thở.' },
+  scatter:     { label:'Rải rác',        icon:'🎲', desc:'Thoải mái phá lẻ từng combo nhỏ, không cố giữ cấu trúc — đánh trải đều, không dồn vào 1 kiểu bộ nào.' },
+  pigHunter:   { label:'Săn Heo',        icon:'🐗', desc:'Chủ động tung lá/đôi cao (không phải 2) sớm để ép đối thủ phải dùng Heo (2) đối phó, dò bài họ.' },
+  bombKeeper:  { label:'Thủ Bom',        icon:'💣', desc:'Cực kỳ giữ kín Tứ Quý và các bộ Đôi Thông — gần như không đụng tới trừ khi bị dồn vào chân tường.' },
+  reckless:    { label:'Liều lĩnh',      icon:'🔥', desc:'Gần như không bao giờ bỏ lượt, sẵn sàng thả Heo sớm mà không tính toán nhiều rủi ro — chơi bốc đồng.' },
+  balanced:    { label:'Cân bằng',       icon:'⚖️', desc:'Dung hoà nhẹ giữa tốc độ và giữ bài — không cực đoan về hướng nào, thiên kiến rất nhẹ.' },
+  ultraSafe:   { label:'An toàn tuyệt đối', icon:'🧯', desc:'Tránh đụng tới Heo (2) hết mức có thể, chỉ chơi khi gần như chắc chắn không bị phản đòn.' },
+  reactive:    { label:'Đối kháng',      icon:'🔄', desc:'Đặc biệt cẩn trọng và hay bỏ lượt khi đối thủ có dấu hiệu ôm Bom — ưu tiên an toàn trước nguy cơ bị chặt.' },
+  sprinter:    { label:'Nước rút cuối',  icon:'🏁', desc:'Chơi dè dặt giữ combo lúc đầu ván, nhưng khi bài đã mỏng thì dồn hết lực xả nhanh về đích.' },
+};
+function resolveAIPlaystyles(){
+  if(state.aiPlaystyleMode!=='custom') return [state.aiPlaystyleMode];
+  const list = [...state.aiCustomStyles];
+  return list.length ? list : ['mechanical'];
+}
+function getStyleWeightProfile(styles){
+  // twoAvoid: mức độ né dùng lá/bộ chứa quân 2 (trừ khi buộc phải/đã an toàn)
+  // blockBias: mức độ ưu tiên dùng bài mạnh để chặn đầu, tính theo sức mạnh lá bài
+  const profiles = {
+    fast:       {shedBias:1.0,  passBias:-6,  structureMult:0.3, rootLenBonus:3.2,  comboHold:0,   twoAvoid:0,   blockBias:0},
+    combo:      {shedBias:-0.5, passBias:8,   structureMult:1.8, rootLenBonus:-1.4, comboHold:14,  twoAvoid:0.3, blockBias:0},
+    mechanical: {shedBias:0,    passBias:0,   structureMult:1.0, rootLenBonus:0,    comboHold:0,   twoAvoid:0,   blockBias:0},
+    turtle:     {shedBias:-0.8, passBias:12,  structureMult:1.3, rootLenBonus:-2.0, comboHold:6,   twoAvoid:0.6, blockBias:0},
+    blocker:    {shedBias:0.3,  passBias:-3,  structureMult:0.8, rootLenBonus:0.8,  comboHold:-2,  twoAvoid:0,   blockBias:2.2},
+    scatter:    {shedBias:0.4,  passBias:-2,  structureMult:0.15,rootLenBonus:0.5,  comboHold:-6,  twoAvoid:0,   blockBias:0},
+    pigHunter:  {shedBias:0.2,  passBias:-4,  structureMult:0.9, rootLenBonus:0.6,  comboHold:-1,  twoAvoid:0.4, blockBias:1.4},
+    bombKeeper: {shedBias:-0.6, passBias:9,   structureMult:2.4, rootLenBonus:-1.8, comboHold:20,  twoAvoid:0.5, blockBias:0},
+    reckless:   {shedBias:0.8,  passBias:-9,  structureMult:0.2, rootLenBonus:2.4,  comboHold:-4,  twoAvoid:-1.2,blockBias:0.4},
+    balanced:   {shedBias:0.2,  passBias:1,   structureMult:1.1, rootLenBonus:0.4,  comboHold:3,   twoAvoid:0.1, blockBias:0.3},
+    ultraSafe:  {shedBias:-0.4, passBias:6,   structureMult:1.2, rootLenBonus:-0.8, comboHold:4,   twoAvoid:1.4, blockBias:0},
+    reactive:   {shedBias:0,    passBias:5,   structureMult:1.1, rootLenBonus:-0.4, comboHold:5,   twoAvoid:0.5, blockBias:0.6},
+    sprinter:   {shedBias:0.6,  passBias:3,   structureMult:1.4, rootLenBonus:1.2,  comboHold:10,  twoAvoid:0.2, blockBias:0},
+  };
+  const list = (styles && styles.length) ? styles : ['mechanical'];
+  const n = list.length;
+  const merged = {shedBias:0, passBias:0, structureMult:0, rootLenBonus:0, comboHold:0, twoAvoid:0, blockBias:0};
+  list.forEach(key=>{
+    const p = profiles[key] || profiles.mechanical;
+    merged.shedBias += p.shedBias/n;
+    merged.passBias += p.passBias/n;
+    merged.structureMult += p.structureMult/n;
+    merged.rootLenBonus += p.rootLenBonus/n;
+    merged.comboHold += p.comboHold/n;
+    merged.twoAvoid += p.twoAvoid/n;
+    merged.blockBias += p.blockBias/n;
+  });
+  return merged;
+}
+
+function simBotDecide(handCards, mustBeat, styleTags, styleProfile){
+  if(handCards.length===0) return null;
+  styleTags = styleTags || [];
+  const hand = new Hand(handCards);
+  const breakdown = hand.breakdown();
+  const allCombos = buildAllPlayableCombos(hand);
+  const free = !mustBeat;
+  const pool = free ? allCombos : allCombos.filter(c=>validateMove(c.cards, false, mustBeat).valid);
+  if(pool.length===0) return null; // buộc bỏ lượt — không có lá nào đè được
+
+  const hoarding = styleTags.some(t=>t.includes('Ôm Cây/Bom'));
+  const defensive = styleTags.some(t=>t.includes('Phòng thủ'));
+  const straightLover = styleTags.some(t=>t.includes('Thiên về Sảnh'));
+  const pairLover = styleTags.some(t=>t.includes('Thiên về Đôi'));
+
+  let passWeight = 0;
+  if(!free){
+    passWeight = 5;
+    if(defensive || hoarding) passWeight += 9;
+    if(handCards.length<=3) passWeight = Math.max(1, passWeight-4); // sắp hết bài thì ít giữ lại hơn
+    if(styleProfile) passWeight = Math.max(0.3, passWeight + styleProfile.passBias);
+  }
+
+  const bigComboTypes = [ComboType.PAIR, ComboType.TRIPLE, ComboType.STRAIGHT, ComboType.THREE_PAIR, ComboType.QUAD, ComboType.FOUR_PAIR];
+  const weighted = pool.map(c=>{
+    let w = 12;
+    w -= c.power*0.05;
+    const structMult = styleProfile ? styleProfile.structureMult : 1;
+    w -= structureBreakPenalty(c, breakdown)*0.55*structMult;
+    if(straightLover && c.type===ComboType.STRAIGHT) w += 8;
+    if(pairLover && c.type===ComboType.PAIR) w += 6;
+    if(hoarding && (c.type===ComboType.THREE_PAIR||c.type===ComboType.QUAD||c.type===ComboType.FOUR_PAIR)) w -= 10;
+    if(c.cards.some(x=>x.rank==='2')) w -= 4;
+    if(styleProfile){
+      w += c.cards.length * styleProfile.shedBias * 2; // Thắng nhanh: thưởng đánh được nhiều lá 1 lúc
+      if(styleProfile.comboHold && bigComboTypes.includes(c.type)){
+        // Giữ Combo / Thủ Bom: phạt tung combo lớn ra sớm (bài còn dày), thưởng nếu bài đã mỏng (cuối ván)
+        const adj = handCards.length>6 ? styleProfile.comboHold : -styleProfile.comboHold*0.6;
+        w -= adj;
+      }
+      if(styleProfile.twoAvoid && c.cards.some(x=>x.rank==='2')){
+        // An toàn tuyệt đối / Giữ Combo: né dùng Heo; Liều lĩnh (twoAvoid âm) thì ngược lại — thích thả Heo sớm
+        w -= styleProfile.twoAvoid * 6;
+      }
+      if(styleProfile.blockBias){
+        // Chặn đầu / Săn Heo: thưởng thêm cho các lá/bộ có sức mạnh cao (chủ động chặn/áp đảo)
+        w += (c.power/15) * styleProfile.blockBias;
+      }
+    }
+    return {c, w: Math.max(0.5, w)};
+  });
+
+  const totalW = weighted.reduce((s,x)=>s+x.w,0) + passWeight;
+  let r = Math.random()*totalW;
+  for(const item of weighted){
+    r -= item.w;
+    if(r<=0) return item.c;
+  }
+  // Đang giữ cái tự do (free=true) thì KHÔNG BAO GIỜ được phép bỏ lượt — bắt buộc phải ra bài.
+  // Nếu rơi tới đây do sai số làm tròn, trả về phương án tốt nhất thay vì null (bỏ lượt).
+  if(free){
+    weighted.sort((a,b)=>b.w-a.w);
+    return weighted[0] ? weighted[0].c : pool[0];
+  }
+  return null; // rơi vào phần trọng số bỏ lượt (chỉ hợp lệ khi KHÔNG free)
+}
+
+// Mô phỏng đầy đủ 1 biến thể: từ nước đi gốc (combo hoặc PASS), chơi tới khi VÁN NGÃ NGŨ
+// THẬT SỰ — nghĩa là chỉ còn tối đa 1 người chưa về (đã có đủ Nhất/Nhì/Ba/Bét), không dừng
+// nửa chừng — hoặc chạm giới hạn an toàn maxPlies (khi đó vẫn ước tính thứ hạng dở dang
+// bằng số lá còn lại, để không lãng phí biến thể chưa ngã ngũ hẳn).
+function simulateFullPlayout(rootCombo, detHands, activeOpponentSeats, styleByOpp, maxPlies, styleProfile){
+  const startCount = state.yourHand.length;
+  const isPassRoot = rootCombo.type==='PASS';
+  let yourHand, lastPlay, tableOwner;
+  if(isPassRoot){
+    yourHand = [...state.yourHand];
+    lastPlay = state.lastPlay;
+    tableOwner = state.tableOwner==='you' ? null : state.tableOwner; // nếu đang tự do thì pass không hợp lệ, coi như giữ nguyên
+  } else {
+    yourHand = state.yourHand.filter(c=>!rootCombo.cards.some(cc=>cc.id===c.id));
+    lastPlay = rootCombo;
+    tableOwner = 'you';
+  }
+  let oppHands = {}; activeOpponentSeats.forEach(s=>oppHands[s.id]=[...detHands[s.id]]);
+  let finishedSet = new Set();
+  let finishOrder = [];
+  let choppedFlag = false;
+  const order = state.turnOrder.filter(id=>{
+    if(id==='you') return true;
+    const s = state.seats.find(x=>x.id===id);
+    return s && !s.finished;
+  });
+  const totalPlayers = order.length;
+  let startIdx = (order.indexOf('you')+1) % Math.max(order.length,1);
+  let sampleParts = [];
+  let resolved = false;
+
+  for(let p=0; p<maxPlies && order.length>1; p++){
+    const stillIn = order.filter(id=> id==='you' ? yourHand.length>0 : (oppHands[id] && oppHands[id].length>0 && !finishedSet.has(id)));
+    if(stillIn.length<=1){ resolved=true; break; }
+
+    const seatId = order[(startIdx+p)%order.length];
+    if(seatId==='you'){
+      if(yourHand.length===0) continue;
+      const free = tableOwner==='you';
+      const mv = simBotDecide(yourHand, free?null:lastPlay, [], styleProfile);
+      if(mv){
+        yourHand = yourHand.filter(c=>!mv.cards.some(cc=>cc.id===c.id)); lastPlay=mv; tableOwner='you';
+        sampleParts.push(`Bạn:${mv.cards.map(c=>c.display).join('')}`);
+        if(yourHand.length===0){ finishOrder.push('you'); sampleParts.push('Bạn về'); }
+      }
+      else sampleParts.push('Bạn:bỏ');
+    } else {
+      if(finishedSet.has(seatId)) continue;
+      const free = tableOwner===seatId;
+      const oh = oppHands[seatId]||[];
+      const mv = simBotDecide(oh, free?null:lastPlay, styleByOpp[seatId]||[]);
+      if(mv){
+        if(p===0 && !isPassRoot && rootCombo.cards.some(c=>c.rank==='2') &&
+           (mv.type===ComboType.THREE_PAIR||mv.type===ComboType.QUAD||mv.type===ComboType.FOUR_PAIR)){
+          choppedFlag = true;
+        }
+        oppHands[seatId] = oh.filter(c=>!mv.cards.some(cc=>cc.id===c.id));
+        lastPlay = mv; tableOwner = seatId;
+        sampleParts.push(`${seatLabel(seatId)}:${mv.cards.map(c=>c.display).join('')}`);
+        if(oppHands[seatId].length===0){ finishedSet.add(seatId); finishOrder.push(seatId); sampleParts.push(`${seatLabel(seatId)} về`); }
+      } else {
+        sampleParts.push(`${seatLabel(seatId)}:bỏ`);
+      }
+    }
+  }
+
+  const endCount = yourHand.length;
+  if(endCount===0 && !finishOrder.includes('you')) finishOrder.push('you');
+  if(!resolved){
+    const stillIn2 = order.filter(id=> id==='you' ? yourHand.length>0 : (oppHands[id] && oppHands[id].length>0 && !finishedSet.has(id)));
+    resolved = stillIn2.length<=1;
+  }
+
+  // Xếp hạng đầy đủ cho biến thể này: ai về trước xếp trước; phần còn dang dở (nếu chạm
+  // giới hạn maxPlies mà vẫn còn >1 người chưa về) ước tính theo số lá còn lại — ít lá hơn xếp trên.
+  const remainingRanked = order
+    .filter(id=>!finishOrder.includes(id))
+    .sort((a,b)=>{
+      const ca = a==='you' ? yourHand.length : (oppHands[a] ? oppHands[a].length : 999);
+      const cb = b==='you' ? yourHand.length : (oppHands[b] ? oppHands[b].length : 999);
+      return ca-cb;
+    });
+  const fullRanking = [...finishOrder, ...remainingRanked];
+  const yourRank = fullRanking.indexOf('you')+1; // 1-based: 1 = về Nhất trong biến thể này
+
+  let score = (startCount-endCount)*10;
+  if(choppedFlag) score -= 50;
+  if(endCount===0) score += 25;
+  score += (totalPlayers - yourRank) * 12; // tổng hợp thêm: thứ hạng cuối cùng trong chính biến thể đó
+
+  return {
+    score, chopped:choppedFlag, finished:endCount===0, resolved,
+    yourRank, totalPlayers,
+    sampleLine: sampleParts.slice(0,7).join(' → '),
+  };
+}
+
+/* ============================================================
+   ĐẤU VỚI BOT — dùng chung engine mô phỏng (simBotDecide) để bot tự quyết định
+   nước đi mỗi lượt, mức độ tính toán (số biến thể + độ sâu) theo độ khó đã chọn.
+============================================================ */
+function getSeatRealHand(seatId){
+  if(seatId==='you') return state.yourHand;
+  const s = state.seats.find(x=>x.id===seatId);
+  return (s && s.hiddenHand) || [];
+}
+function determinizeForBot(otherActiveSeats, unkPool){
+  let pool=[...unkPool];
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  const hands={}; let idx=0;
+  otherActiveSeats.forEach(s=>{
+    const cnt = s.id==='you' ? state.yourHand.length : s.count;
+    hands[s.id]=pool.slice(idx, idx+cnt); idx+=cnt;
+  });
+  return hands;
+}
+// Mô phỏng 1 biến thể từ góc nhìn của BOT đang cần quyết định (selfId) — cấu trúc tương tự
+// simulateFullPlayout (dùng cho người chơi thật) nhưng tổng quát cho bất kỳ ghế nào.
+function simulateBotPlayout(selfId, rootCombo, detHandsOthers, otherActiveSeats, maxPlies, selfStyleProfile){
+  const startCount = getSeatRealHand(selfId).length;
+  const isPassRoot = rootCombo.type==='PASS';
+  let selfHand, lastPlay, tableOwner;
+  if(isPassRoot){
+    selfHand = [...getSeatRealHand(selfId)];
+    lastPlay = state.lastPlay;
+    tableOwner = state.tableOwner===selfId ? null : state.tableOwner;
+  } else {
+    selfHand = getSeatRealHand(selfId).filter(c=>!rootCombo.cards.some(cc=>cc.id===c.id));
+    lastPlay = rootCombo;
+    tableOwner = selfId;
+  }
+  let others = {}; otherActiveSeats.forEach(s=>others[s.id]=[...(detHandsOthers[s.id]||[])]);
+  let finishedSet = new Set();
+  let finishOrder = [];
+  const order = state.turnOrder.filter(id=>{
+    if(id===selfId) return true;
+    const s = state.seats.find(x=>x.id===id);
+    return s && !s.finished;
+  });
+  const totalPlayers = order.length;
+  let startIdx = (order.indexOf(selfId)+1) % Math.max(order.length,1);
+  let resolved = false;
+
+  for(let p=0; p<maxPlies && order.length>1; p++){
+    const stillIn = order.filter(id=> id===selfId ? selfHand.length>0 : (others[id] && others[id].length>0 && !finishedSet.has(id)));
+    if(stillIn.length<=1){ resolved=true; break; }
+    const seatId = order[(startIdx+p)%order.length];
+    if(seatId===selfId){
+      if(selfHand.length===0) continue;
+      const free = tableOwner===selfId;
+      const mv = simBotDecide(selfHand, free?null:lastPlay, [], selfStyleProfile);
+      if(mv){
+        selfHand = selfHand.filter(c=>!mv.cards.some(cc=>cc.id===c.id)); lastPlay=mv; tableOwner=selfId;
+        if(selfHand.length===0) finishOrder.push(selfId);
+      }
+    } else {
+      if(finishedSet.has(seatId)) continue;
+      const free = tableOwner===seatId;
+      const oh = others[seatId]||[];
+      const oppSeat = state.seats.find(x=>x.id===seatId);
+      const oppProfile = (oppSeat && oppSeat.botStyleProfile) ? oppSeat.botStyleProfile : null;
+      const mv = simBotDecide(oh, free?null:lastPlay, [], oppProfile);
+      if(mv){
+        others[seatId] = oh.filter(c=>!mv.cards.some(cc=>cc.id===c.id));
+        lastPlay = mv; tableOwner = seatId;
+        if(others[seatId].length===0){ finishedSet.add(seatId); finishOrder.push(seatId); }
+      }
+    }
+  }
+  const endCount = selfHand.length;
+  if(endCount===0 && !finishOrder.includes(selfId)) finishOrder.push(selfId);
+  const remainingRanked = order.filter(id=>!finishOrder.includes(id)).sort((a,b)=>{
+    const ca = a===selfId ? selfHand.length : (others[a]?others[a].length:999);
+    const cb = b===selfId ? selfHand.length : (others[b]?others[b].length:999);
+    return ca-cb;
+  });
+  const fullRanking = [...finishOrder, ...remainingRanked];
+  const selfRank = fullRanking.indexOf(selfId)+1;
+  let score = (startCount-endCount)*10;
+  if(endCount===0) score += 25;
+  score += (totalPlayers-selfRank)*12;
+  return {score};
+}
+
+// Tính nước đi thật của 1 bot ở lượt hiện tại — dùng chính engine mô phỏng, số biến thể
+// và độ sâu theo độ khó đã chọn khi thiết lập ván.
+function computeBotMove(seatId){
+  const seat = state.seats.find(s=>s.id===seatId);
+  const hand = new Hand(seat.hiddenHand);
+  const free = isFreeLead(seatId);
+  const allCombos = buildAllPlayableCombos(hand);
+  let pool = free ? allCombos : allCombos.filter(c=>validateMove(c.cards, false, state.lastPlay).valid);
+  if(!free) pool = [...pool, {type:'PASS', cards:[], power:-1}];
+  if(pool.length===0) return null;
+
+  const cfg = BOT_DIFFICULTY[state.botDifficulty] || BOT_DIFFICULTY.easy;
+  const knownToBot = new Set([...seat.hiddenHand, ...state.history].map(c=>c.id));
+  const unkFromBotView = buildFullDeck().filter(c=>!knownToBot.has(c.id));
+  const otherActiveSeats = state.seats.filter(s=>s.id!==seatId && !s.finished);
+
+  const totals = pool.map(()=>0);
+  const runsArr = pool.map(()=>0);
+  for(let i=0;i<cfg.iterations;i++){
+    const detHands = determinizeForBot(otherActiveSeats, unkFromBotView);
+    pool.forEach((combo,ci)=>{
+      const r = simulateBotPlayout(seatId, combo, detHands, otherActiveSeats, cfg.maxPlies, seat.botStyleProfile);
+      totals[ci]+=r.score; runsArr[ci]++;
+    });
+  }
+  let bestIdx=0, bestAvg=-Infinity;
+  pool.forEach((c,i)=>{ const avg = runsArr[i]?totals[i]/runsArr[i]:-Infinity; if(avg>bestAvg){bestAvg=avg; bestIdx=i;} });
+  return pool[bestIdx];
+}
+
+function executeBotMove(seatId, mv){
+  const seat = state.seats.find(s=>s.id===seatId);
+  if(!seat || seat.finished) return;
+  if(!mv || mv.type==='PASS'){
+    const free = isFreeLead(seatId);
+    state.log.push(`${seat.label} bỏ lượt.`);
+    if(!free && state.lastPlay){
+      if(!state.playerLog[seatId]) state.playerLog[seatId]=[];
+      state.playerLog[seatId].push({kind:'pass', facedComboType: state.lastPlay.type, facedComboLen: state.lastPlay.cards.length, facedComboPower: state.lastPlay.power});
+    }
+    advanceTurn();
+    return;
+  }
+  const free = isFreeLead(seatId);
+  const facedCombo = free ? null : state.lastPlay;
+  const played = mv.cards;
+  const combo = classifyCombo(played);
+  pushUndo();
+  seat.hiddenHand = seat.hiddenHand.filter(c=>!played.some(pc=>pc.id===c.id));
+  seat.count = seat.hiddenHand.length;
+  state.history.push(...played);
+  state.lastPlay = combo;
+  state.tableOwner = seatId;
+  state.log.push(`${seat.label} đánh ${comboLabel(combo.type)}: ${played.map(c=>c.display).join(' ')}`);
+  if(!state.playerLog[seatId]) state.playerLog[seatId]=[];
+  state.playerLog[seatId].push({
+    kind:'play', cards:played.map(c=>c.id), comboType:combo.type, comboLen:combo.cards.length, comboPower:combo.power,
+    facedFree:free, facedComboType: facedCombo?facedCombo.type:null, facedComboLen: facedCombo?facedCombo.cards.length:null, facedComboPower: facedCombo?facedCombo.power:null,
+  });
+  if(seat.hiddenHand.length===0){ seat.finished=true; state.rankOrder.push(seatId); state.log.push(`${seat.label} đã về!`); }
+  advanceTurn();
+}
+
+function triggerBotMoveIfNeeded(seat){
+  if(state.botThinking) return;
+  state.botThinking = true;
+  const seatId = seat.id;
+  setTimeout(()=>{
+    let mv = null;
+    try{ mv = computeBotMove(seatId); }catch(e){ mv = null; }
+    state.botThinking = false;
+    executeBotMove(seatId, mv);
+  }, 450);
+}
+
+
+function setAIDepth(mode){ state.aiDepthMode=mode; render(); }
+function setAICustomIterations(v){ state.aiCustomIterations=v.replace(/[^0-9]/g,''); }
+function setAICustomDepth(v){ state.aiCustomDepth=v.replace(/[^0-9]/g,''); }
+function setAIPlaystyle(mode){ state.aiPlaystyleMode=mode; render(); }
+function toggleAICustomStyle(key){
+  if(state.aiCustomStyles.has(key)) state.aiCustomStyles.delete(key);
+  else state.aiCustomStyles.add(key);
+  render();
+}
+function toggleAIWhy(){ state.aiWhyExpanded=!state.aiWhyExpanded; render(); }
+
+function runAISuperSuggestion(){
+  if(state.aiLoading) return;
+  const seat = currentSeat();
+  if(!seat || seat.id!=='you') return;
+
+  const free = isFreeLead('you');
+  const hand = new Hand(state.yourHand);
+  const opponents = state.seats.filter(s=>s.id!=='you'&&!s.finished).map(s=>{
+    const inf = inferOpponent(s.id);
+    return {name:s.label, count:s.count, provenNoBomb: inf.noQuad && inf.noThreePair && inf.noFourPair};
+  });
+  const unk = unknownDeck();
+  const pigSafety = evaluatePigSafety(unk, opponents, state.bombSuspect);
+  const gs = {holder: free?'you':'opp', lastPlay: free?null:state.lastPlay, opponents, historyCount: state.history.length};
+  const superAnalysis = computeSuperAnalysis();
+  // Xét rộng hơn (6 thay vì 4 ứng viên) để Siêu Gợi Ý không bỏ sót nước đi tốt thứ nhì/ba —
+  // vòng lặp mô phỏng giờ chạy theo ngân sách thời gian nên vẫn nhanh dù xét nhiều hơn.
+  let candidates = rankCandidateMoves(hand, gs, pigSafety, superAnalysis, 6);
+  // Luôn cho phép AI cân nhắc BỎ LƯỢT như 1 phương án thật sự — không chỉ khi bí nước.
+  if(!free){
+    candidates = [...candidates, {combo:{type:'PASS', cards:[], power:-1}, score:-9999, reasons:['Giữ nguyên bài, không tiêu lực']}];
+  }
+  if(candidates.length===0){
+    state.aiError = 'Không có lựa chọn nào (kể cả Bỏ lượt) để phân tích.';
+    render();
+    return;
+  }
+
+  const {iterations, maxPlies, label} = resolveDepthConfig();
+  const activeOpponentSeats = state.seats.filter(s=>s.id!=='you' && !s.finished);
+  const weightByRank = buildWeightByRank(activeOpponentSeats);
+  const styleByOpp = {}; activeOpponentSeats.forEach(s=>styleByOpp[s.id]=classifyPlaystyle(s.id));
+  const aiStyles = resolveAIPlaystyles();
+  const styleProfile = getStyleWeightProfile(aiStyles);
+  const acc = candidates.map(()=>({totalScore:0, chopped:0, wins:0, runs:0, rankSum:0, firstCount:0, pruned:false, prunedAt:null, pruneReason:null}));
+  // Cache xác định-bài-ẩn BỀN VỮNG qua nhiều lần bấm "Chạy" ở cùng 1 thời điểm quyết định
+  // (cùng bài trên tay, cùng lượt, cùng trạng thái bàn) — tránh tính lại đúng y hệt 1 cách
+  // chia bài ẩn đã thử trước đó. Chỉ reset khi trạng thái ván thật sự đổi (sang lượt khác).
+  const fp = gameAnalysisFingerprint();
+  if(state.aiDeterminizationCache.key !== fp || state.aiDeterminizationCache.set.size > 200000){
+    state.aiDeterminizationCache = {key: fp, set: new Set()};
+  }
+  const seenDeterminizations = state.aiDeterminizationCache.set;
+
+  // ===== Cắt tỉa sớm (early pruning) =====
+  // Sau một số lượt mô phỏng đủ tin cậy, nếu 1 phương án đã rõ ràng thua xa phương án
+  // đang dẫn đầu (điểm trung bình kém hơn hẳn VÀ tỉ lệ về đích không nhỉnh hơn), coi như
+  // "chắc chắn thua" -> ngừng mô phỏng tiếp phương án đó, để dồn thời gian còn lại cho
+  // những phương án còn cạnh tranh, giúp kết luận cuối cùng chắc chắn hơn mà vẫn nhanh hơn.
+  const MIN_RUNS_BEFORE_PRUNE = Math.max(8, Math.round(iterations*0.12));
+  const PRUNE_MARGIN = 18; // chênh lệch điểm trung bình tối thiểu để coi là "kém rõ rệt"
+  function reviewPruning(){
+    const active = acc.map((a,i)=>({a,i})).filter(x=>!x.a.pruned);
+    if(active.length<=1) return; // luôn giữ lại ít nhất 1 phương án
+    const ready = active.filter(x=>x.a.runs>=MIN_RUNS_BEFORE_PRUNE);
+    if(ready.length<2) return;
+    const stats = active.map(x=>({i:x.i, avg: x.a.runs? x.a.totalScore/x.a.runs : -Infinity, fin: x.a.runs? x.a.wins/x.a.runs : 0}));
+    const bestAvg = Math.max(...stats.map(s=>s.avg));
+    const bestFin = Math.max(...stats.map(s=>s.fin));
+    active.forEach(x=>{
+      if(x.a.runs < MIN_RUNS_BEFORE_PRUNE) return;
+      const s = stats.find(z=>z.i===x.i);
+      const stillActiveCount = acc.filter(a=>!a.pruned).length;
+      if(stillActiveCount<=1) return;
+      if((bestAvg - s.avg) >= PRUNE_MARGIN && s.fin<=bestFin){
+        x.a.pruned = true;
+        x.a.prunedAt = x.a.runs;
+        x.a.pruneReason = `Loại sớm sau ${x.a.runs} biến thể — kém hẳn phương án dẫn đầu, xem như chắc chắn thua`;
+      }
+    });
+  }
+
+  state.aiLoading = true; state.aiError=null; state.aiResult=null;
+  state.aiProgress = {current:0, total:iterations, sample:''};
+  state.aiRunToken = (state.aiRunToken||0) + 1;
+  const myToken = state.aiRunToken;
+  render();
+
+  // Chạy theo ngân sách thời gian mỗi khung hình (~14ms) thay vì chia cố định 40 khúc:
+  // máy nhanh sẽ tự làm được nhiều biến thể hơn mỗi khúc -> xong sớm hơn nhiều,
+  // máy chậm vẫn không bị đơ vì luôn nhường lại cho trình duyệt sau mỗi khung hình.
+  const FRAME_BUDGET_MS = 14;
+  let iter = 0;
+  const schedule = (typeof requestAnimationFrame==='function') ? requestAnimationFrame : (fn=>setTimeout(fn,0));
+
+  function step(){
+    // Nếu trạng thái ván đã đổi (bạn đánh/bỏ lượt bằng nút thường, sang lượt khác, ván mới...)
+    // trong lúc tính toán còn dở dang thì DỪNG NGAY, không đụng vào state.aiProgress/aiResult nữa
+    // — đây là nguyên nhân gây lỗi "Cannot set properties of null" trước đây.
+    if(state.aiRunToken !== myToken || !state.aiProgress){ return; }
+    const t0 = performance.now();
+    while(iter<iterations && (performance.now()-t0) < FRAME_BUDGET_MS){
+      const activeIdx = [];
+      candidates.forEach((cand,ci)=>{ if(!acc[ci].pruned) activeIdx.push(ci); });
+      if(activeIdx.length===0) break; // an toàn, không nên xảy ra
+
+      let detHands, key, tries=0;
+      do{
+        detHands = determinizeOpponentHands(activeOpponentSeats, unk, weightByRank);
+        key = activeOpponentSeats.map(s=>detHands[s.id].map(c=>c.id).sort().join(',')).join('|');
+        tries++;
+      } while(seenDeterminizations.has(key) && tries<6);
+      seenDeterminizations.add(key);
+
+      activeIdx.forEach(ci=>{
+        const cand = candidates[ci];
+        const playout = simulateFullPlayout(cand.combo, detHands, activeOpponentSeats, styleByOpp, maxPlies, styleProfile);
+        acc[ci].totalScore += playout.score;
+        acc[ci].chopped += playout.chopped?1:0;
+        acc[ci].wins += playout.finished?1:0;
+        acc[ci].rankSum += playout.yourRank;
+        acc[ci].firstCount += (playout.yourRank===1)?1:0;
+        acc[ci].runs++;
+        if(ci===0) state.aiProgress.sample = playout.sampleLine;
+      });
+      iter++;
+      if(iter % 5 === 0) reviewPruning();
+
+      // Nếu chỉ còn đúng 1 phương án chưa bị loại và đã có đủ mẫu tối thiểu,
+      // kết luận coi như đã rõ ràng -> dừng sớm, không cần tiêu hết ngân sách vòng lặp.
+      const stillActive = acc.filter(a=>!a.pruned);
+      if(stillActive.length===1 && stillActive[0].runs>=MIN_RUNS_BEFORE_PRUNE){
+        iter = iterations;
+        break;
+      }
+    }
+    state.aiProgress.current = iter;
+    const prunedCount = acc.filter(a=>a.pruned).length;
+    if(prunedCount>0){
+      state.aiProgress.sample = `${state.aiProgress.sample||''}${state.aiProgress.sample?' · ':''}Đã loại sớm ${prunedCount}/${candidates.length} phương án chắc chắn thua`;
+    }
+    // Chỉ cập nhật trực tiếp thanh tiến trình, không dựng lại toàn bộ trang mỗi khung hình.
+    // Nếu panel chưa từng được vẽ (ví dụ lần chunk đầu tiên) thì mới render() toàn bộ 1 lần.
+    if(!updateAIProgressDOM(state.aiProgress)) render();
+    if(iter<iterations){
+      schedule(step);
+    } else {
+      try{
+        const bigComboTypes = [ComboType.PAIR, ComboType.TRIPLE, ComboType.STRAIGHT, ComboType.THREE_PAIR, ComboType.QUAD, ComboType.FOUR_PAIR];
+        const simResults = candidates.map((cand,i)=>{
+          let avgScore = acc[i].runs? acc[i].totalScore/acc[i].runs : 0;
+          // Cộng thêm điểm phong cách cho chính nước đi GỐC đang xét (không chỉ các lượt tương lai)
+          if(cand.combo.type!=='PASS'){
+            avgScore += cand.combo.cards.length * styleProfile.rootLenBonus;
+            if(styleProfile.comboHold && bigComboTypes.includes(cand.combo.type)){
+              const adj = state.yourHand.length>6 ? styleProfile.comboHold : -styleProfile.comboHold*0.5;
+              avgScore -= adj;
+            }
+          } else {
+            avgScore += styleProfile.passBias*1.5; // Giữ Combo: bỏ lượt cũng được cộng điểm nhẹ nếu hợp phong cách
+          }
+          return {
+            combo: cand.combo,
+            avgScore,
+            chopRate: acc[i].runs? acc[i].chopped/acc[i].runs : 0,
+            finishRate: acc[i].runs? acc[i].wins/acc[i].runs : 0,
+            avgRank: acc[i].runs? acc[i].rankSum/acc[i].runs : null,
+            winRate: acc[i].runs? acc[i].firstCount/acc[i].runs : 0,
+            pruned: acc[i].pruned,
+            prunedAt: acc[i].prunedAt,
+            pruneReason: acc[i].pruneReason,
+            runs: acc[i].runs,
+          };
+        });
+        const synthesis = synthesizeAIReasoning(candidates, simResults, superAnalysis, pigSafety, aiStyles);
+        state.aiResult = {simResults, synthesis, iterations, maxPlies, label, aiStyles};
+      } catch(err){
+        state.aiError = 'Có lỗi khi tổng hợp kết quả: ' + (err && err.message ? err.message : 'không xác định');
+      }
+      state.aiLoading = false;
+      state.aiProgress = null;
+      render();
+    }
+  }
+  schedule(step);
+}
+
+function useAISuggestion(){
+  if(!state.aiResult) return;
+  const top = state.aiResult.synthesis.ranked[0];
+  if(!top) return;
+  if(top.combo.type==='PASS'){ passTurn(); return; }
+  state.playSelected = new Set(top.combo.cards.map(c=>c.id));
+  state.playError = null;
+  render();
+}
+function synthesizeAIReasoning(candidates, simResults, superAnalysis, pigSafety, aiStyles){
+  const ranked = simResults.map((s,i)=>({...s, combo:candidates[i].combo})).sort((a,b)=>b.avgScore-a.avgScore);
+  const best = ranked[0], second = ranked[1];
+  const cardsTxt = c=>c.combo.type==='PASS' ? 'Bỏ lượt' : c.combo.cards.map(x=>x.display).join(' ');
+  const perOpp = Object.values(superAnalysis.perOpponent);
+  const styleNote = (aiStyles && aiStyles.length && !(aiStyles.length===1 && aiStyles[0]==='mechanical'))
+    ? `Theo lối chơi ${aiStyles.map(s=>AI_PLAYSTYLES[s]?AI_PLAYSTYLES[s].label:s).join(' + ')}: `
+    : '';
+
+  if(best.combo.type==='PASS'){
+    const sentences = [`${styleNote}Sau khi mô phỏng nhiều biến thể, Bỏ lượt lại là phương án tốt nhất — giữ nguyên bài trên tay thay vì tiêu lực vào cửa này thường mang lại kết quả tốt hơn về đường dài.`];
+    if(second) sentences.push(`Phương án gần nhất là ${cardsTxt(second)}, nhưng vẫn kém hơn rõ rệt trong đa số biến thể được thử.`);
+    const hoardingNames0 = perOpp.filter(o=>o.inf.hoarding).map(o=>o.label);
+    if(hoardingNames0.length) sentences.push(`${hoardingNames0.join(', ')} đang có dấu hiệu ôm bài — giữ lại lúc này giúp tránh lộ bài mạnh trước khi cần thiết.`);
+    return {headline:'Bỏ lượt — giữ bài', why: sentences.join(' '), ranked};
+  }
+
+  const relevantWeak = perOpp.filter(o=>{
+    if(best.combo.type===ComboType.STRAIGHT) return o.inf.noStraightLen && o.inf.noStraightLen[best.combo.cards.length];
+    if(best.combo.type===ComboType.PAIR) return o.inf.weakPair;
+    if(best.combo.type===ComboType.TRIPLE) return o.inf.weakTriple;
+    return false;
+  });
+  const bombThreat = perOpp.filter(o=>Math.max(o.bomb.p3,o.bomb.pQuad,o.bomb.p4)>=0.3);
+  const isPig = best.combo.cards.some(c=>c.rank==='2');
+  const margin = second ? best.avgScore-second.avgScore : 0;
+
+  let opening;
+  if(relevantWeak.length){
+    opening = `Phương án ${comboLabel(best.combo.type)} ${cardsTxt(best)} nổi bật nhất trong các biến thể mô phỏng — dựa theo cách ${relevantWeak.map(o=>o.label).join(' và ')} từng bỏ lượt trước đó, khả năng cao họ không còn đủ lực để đè lại cửa này.`;
+  } else if(isPig && pigSafety.safe){
+    opening = `Sau khi tính thử nhiều biến thể, đây là thời điểm hợp lý để đẩy ${cardsTxt(best)} đi — sàn hiện khá sạch nên rủi ro bị chặt ngược không đáng kể.`;
+  } else if(bombThreat.length){
+    opening = `${cardsTxt(best)} vẫn là lựa chọn tốt nhất sau mô phỏng, nhưng cần lưu ý ${bombThreat.map(o=>o.label).join(', ')} đang có dấu hiệu ôm Bom — nếu đúng vậy, thế trận có thể xoay chiều.`;
+  } else {
+    opening = `Sau khi tính toán nhiều biến thể có thể xảy ra tiếp theo, phương án ${cardsTxt(best)} cho kết quả tốt nhất về đường dài.`;
+  }
+  const sentences=[styleNote+opening];
+
+  if(second){
+    if(margin>5) sentences.push(`So với phương án ${cardsTxt(second)} đứng kế tiếp, cách chơi này vượt trội rõ rệt trong phần lớn các biến thể được thử.`);
+    else sentences.push(`Phương án ${cardsTxt(second)} cũng gần tương đương — nếu muốn thiên về phòng thủ và giữ lá lớn lâu hơn thì đây là lựa chọn dự phòng hợp lý.`);
+  }
+  if(best.chopRate>0.12){
+    sentences.push(`Tuy vậy, khoảng ${Math.round(best.chopRate*100)}% biến thể mô phỏng cho thấy nước này vẫn có thể bị phản đòn — không có gì chắc chắn tuyệt đối khi chưa biết bài đối thủ.`);
+  }
+  if(best.winRate>0){
+    sentences.push(`Tính hết cả ván (mô phỏng chơi tới khi ngã ngũ Nhất/Nhì/Ba/Bét), phương án này giúp bạn về Nhất khoảng ${Math.round(best.winRate*100)}% số biến thể, thứ hạng trung bình ${best.avgRank?best.avgRank.toFixed(1):'?'}/${state.turnOrder.length}.`);
+  }
+  const hoardingNames = perOpp.filter(o=>o.inf.hoarding).map(o=>o.label);
+  if(hoardingNames.length){
+    sentences.push(`${hoardingNames.join(', ')} đang có dấu hiệu bỏ lượt nhiều dù bài còn dày — nên cân nhắc thêm trước khi tất tay các bộ lớn.`);
+  }
+  return {headline:`${cardsTxt(best)} — ${comboLabel(best.combo.type)}`, why: sentences.join(' '), ranked};
+}
+
+/* ============================================================
+   SIÊU GỢI Ý: nhiều lựa chọn nước đi, xếp hạng theo điểm hiệu quả
+============================================================ */
+function rankCandidateMoves(hand, gs, pigSafety, superAnalysis, maxCount){
+  maxCount = maxCount || 4;
+  const key = gameAnalysisFingerprint() + '||n=' + maxCount;
+  if(_rankCandidatesCache.key===key) return _rankCandidatesCache.value;
+  const value = rankCandidateMovesRaw(hand, gs, pigSafety, superAnalysis, maxCount);
+  _rankCandidatesCache.key = key;
+  _rankCandidatesCache.value = value;
+  return value;
+}
+function rankCandidateMovesRaw(hand, gs, pigSafety, superAnalysis, maxCount){
+  const allCombos = buildAllPlayableCombos(hand);
+  const free = gs.holder==='you';
+  let pool;
+  if(free){
+    pool = allCombos;
+  } else {
+    pool = allCombos.filter(c=>validateMove(c.cards, false, gs.lastPlay).valid);
+  }
+  if(pool.length===0) return [];
+
+  const isEarly = gs.historyCount<8;
+  const reportingOpp = gs.opponents.find(o=>o.count===1);
+  const nearOutOpp = gs.opponents.find(o=>o.count<=2);
+  const perOpp = superAnalysis ? Object.values(superAnalysis.perOpponent) : [];
+  const breakdown = hand.breakdown();
+
+  const scored = pool.map(combo=>{
+    let score=0; const reasons=[];
+    score += combo.cards.length*8;
+    score -= combo.power*0.06;
+
+    const breakPenalty = structureBreakPenalty(combo, breakdown);
+    if(breakPenalty>0){ score -= breakPenalty; reasons.push('⚠ Phá vỡ Sảnh/Bộ lớn hơn đang có sẵn trong tay'); }
+
+    if(hand.cards.length<=6 && (combo.type==='STRAIGHT'||combo.type==='THREE_PAIR_STRAIGHT'||combo.type==='FOUR_PAIR_STRAIGHT')){
+      score += 20; reasons.push('Rút ngắn số lượt về đích');
+    }
+    if(isEarly && combo.power<70){ score+=12; reasons.push('Dọn rác đầu ván'); }
+
+    const isPigMove = combo.cards.some(c=>c.rank==='2');
+    if(isPigMove){
+      if(!pigSafety.safe){ score-=45; reasons.push('⚠ Rủi ro bị chặt Heo cao'); }
+      else { score+=6; reasons.push('Thả Heo an toàn'); }
+    }
+    if(reportingOpp){
+      if(combo.type===ComboType.SINGLE && combo.power<100){ score-=25; reasons.push('⚠ Không nên đánh rác nhỏ khi có người báo bài'); }
+      if((combo.type===ComboType.PAIR||combo.type===ComboType.SINGLE) && combo.power>=120){ score+=15; reasons.push('Chặn nhà báo bài'); }
+    }
+    if(!free && nearOutOpp){ score += 10; reasons.push(`Ưu tiên cướp cái trước ${nearOutOpp.name}`); }
+
+    // ===== SIÊU GỢI Ý dựa trên SIÊU SUY LUẬN =====
+    if(perOpp.length){
+      // 1) Đánh Sảnh khi đối thủ đã bị suy luận là khó/không còn Sảnh dài tương đương
+      if(combo.type===ComboType.STRAIGHT){
+        const weakAgainst = perOpp.filter(o=>o.inf.noStraightLen && o.inf.noStraightLen[combo.cards.length]);
+        if(weakAgainst.length){
+          score += 22*weakAgainst.length;
+          reasons.push(`An toàn cao: ${weakAgainst.map(o=>o.label).join(', ')} nhiều khả năng không còn Sảnh ${combo.cards.length} lá để đè`);
+        }
+      }
+      // 2) Đánh Đôi/Bộ Ba khi đối thủ bị suy luận yếu Đôi/Bộ Ba
+      if(combo.type===ComboType.PAIR){
+        const weakAgainst = perOpp.filter(o=>o.inf.weakPair);
+        if(weakAgainst.length){ score += 14*weakAgainst.length; reasons.push(`${weakAgainst.map(o=>o.label).join(', ')} nhiều khả năng không còn Đôi lớn để đè`); }
+      }
+      if(combo.type===ComboType.TRIPLE){
+        const weakAgainst = perOpp.filter(o=>o.inf.weakTriple);
+        if(weakAgainst.length){ score += 14*weakAgainst.length; reasons.push(`${weakAgainst.map(o=>o.label).join(', ')} nhiều khả năng không còn Bộ Ba lớn`); }
+      }
+      // 3) Đã CHỨNG MINH (không chỉ suy đoán) đối thủ đang cần đè không đè nổi loại/độ lớn này
+      if(!free && gs.lastPlay){
+        const provenSafe = perOpp.filter(o=>{
+          if(gs.lastPlay.type==='SINGLE' && gs.lastPlay.cards[0].rank==='2') return o.inf.noQuad && o.inf.noThreePair && o.inf.noFourPair;
+          if(gs.lastPlay.type==='PAIR' && gs.lastPlay.cards[0].rank==='2') return o.inf.noQuad && o.inf.noFourPair;
+          const k = gs.lastPlay.type+'|'+gs.lastPlay.cards.length;
+          return o.inf.genericThreshold && o.inf.genericThreshold[k]!==undefined && o.inf.genericThreshold[k] <= gs.lastPlay.power;
+        });
+        if(provenSafe.length){ score += 30; reasons.push(`An toàn tuyệt đối trước ${provenSafe.map(o=>o.label).join(', ')} — đã từng bỏ lượt ở cửa này`); }
+      }
+      // 4) Cảnh báo nếu chuẩn bị lộ hàng lớn (sảnh dài/3 đôi thông/tứ quý) mà có đối thủ nghi ôm Bom cao
+      if((combo.type===ComboType.THREE_PAIR||combo.type===ComboType.QUAD||combo.type===ComboType.FOUR_PAIR)){
+        const highBombRisk = perOpp.filter(o=>Math.max(o.bomb.p3,o.bomb.pQuad,o.bomb.p4)>=0.4);
+        if(highBombRisk.length){ score -= 15; reasons.push(`⚠ ${highBombRisk.map(o=>o.label).join(', ')} có khả năng ôm Bom cao hơn — cân nhắc giữ lại`); }
+      }
+    }
+
+    if(reasons.length===0) reasons.push('Phương án hợp lệ, tiết kiệm lực bài');
+    return {combo, score, reasons};
+  });
+
+  scored.sort((a,b)=>b.score-a.score);
+  const top = scored.slice(0,maxCount);
+  const maxScore = top[0].score, minScore = top[top.length-1].score;
+  const range = Math.max(1, maxScore-minScore);
+  top.forEach((s,i)=>{ s.pct = i===0 ? 100 : Math.round(40 + ((s.score-minScore)/range)*55); });
+  return top;
+}
+
+/* ---------------- LUẬT HỢP LỆ (validate 1 nước đi) ---------------- */
+// Trả về {valid:boolean, reason:string, combo}
+function validateMove(cards, free, lastPlay){
+  const combo = classifyCombo(cards);
+  if(combo.type===ComboType.UNKNOWN){
+    return {valid:false, reason:"Đây không phải một bộ bài hợp lệ (Lẻ / Đôi / Bộ Ba / Tứ Quý / Sảnh / Đôi Thông).", combo};
+  }
+  if(free) return {valid:true, reason:"", combo};
+
+  if(!lastPlay) return {valid:true, reason:"", combo};
+
+  const isBareTwo = lastPlay.type===ComboType.SINGLE && lastPlay.cards[0].rank==="2";
+  const isPairTwo = lastPlay.type===ComboType.PAIR && lastPlay.cards[0].rank==="2";
+
+  if(isBareTwo){
+    // Được đè bởi: một lá 2 KHÁC cao hơn (so bình thường theo chất) — HOẶC các bộ chặt đặc biệt.
+    if(combo.type===ComboType.SINGLE && combo.cards[0].rank==="2" && combo.power>lastPlay.power){
+      return {valid:true, reason:"", combo};
+    }
+    if(CHOP_MATRIX.SINGLE_2.includes(combo.type)){
+      return {valid:true, reason:"", combo};
+    }
+    return {valid:false, reason:"Chỉ lá 2 khác cao hơn (theo chất), hoặc 3 Đôi Thông/Tứ Quý/4 Đôi Thông mới chặt được Lẻ 2 này.", combo};
+  }
+  if(isPairTwo){
+    // Tương tự: được đè bởi Đôi 2 khác cao hơn, hoặc Tứ Quý/4 Đôi Thông (3 Đôi Thông thì KHÔNG).
+    if(combo.type===ComboType.PAIR && combo.cards[0].rank==="2" && combo.power>lastPlay.power){
+      return {valid:true, reason:"", combo};
+    }
+    if(combo.type===ComboType.THREE_PAIR){
+      return {valid:false, reason:"3 Đôi Thông KHÔNG được chặt Đôi 2 — chỉ Đôi 2 khác cao hơn, Tứ Quý hoặc 4 Đôi Thông mới chặt được.", combo};
+    }
+    if(CHOP_MATRIX.PAIR_2.includes(combo.type)){
+      return {valid:true, reason:"", combo};
+    }
+    return {valid:false, reason:"Chỉ có Đôi 2 khác cao hơn, Tứ Quý hoặc 4 Đôi Thông mới chặt được Đôi 2 này.", combo};
+  }
+  if(lastPlay.type===ComboType.THREE_PAIR){
+    if(combo.type===ComboType.QUAD || combo.type===ComboType.FOUR_PAIR) return {valid:true, reason:"", combo};
+    if(combo.type===ComboType.THREE_PAIR && combo.power>lastPlay.power) return {valid:true, reason:"", combo};
+    return {valid:false, reason:"Chỉ 3 Đôi Thông cao hơn, Tứ Quý, hoặc 4 Đôi Thông mới đè được 3 Đôi Thông này.", combo};
+  }
+  if(lastPlay.type===ComboType.QUAD){
+    if(combo.type===ComboType.FOUR_PAIR) return {valid:true, reason:"", combo};
+    if(combo.type===ComboType.QUAD && combo.power>lastPlay.power) return {valid:true, reason:"", combo};
+    return {valid:false, reason:"Chỉ Tứ Quý cao hơn hoặc 4 Đôi Thông mới đè được Tứ Quý này.", combo};
+  }
+  if(lastPlay.type===ComboType.FOUR_PAIR){
+    if(combo.type===ComboType.FOUR_PAIR && combo.power>lastPlay.power) return {valid:true, reason:"", combo};
+    return {valid:false, reason:"Chỉ 4 Đôi Thông cao hơn mới đè được 4 Đôi Thông này.", combo};
+  }
+  if(lastPlay.type===ComboType.STRAIGHT){
+    if(combo.type!==ComboType.STRAIGHT){
+      return {valid:false, reason:"Bạn phải đánh Sảnh để đè Sảnh này.", combo};
+    }
+    if(combo.cards.length>lastPlay.cards.length){
+      return {valid:true, reason:"", combo}; // Sảnh dài hơn luôn chặt được Sảnh ngắn hơn
+    }
+    if(combo.cards.length===lastPlay.cards.length && combo.power>lastPlay.power){
+      return {valid:true, reason:"", combo};
+    }
+    return {valid:false, reason:`Sảnh phải dài hơn ${lastPlay.cards.length} lá, hoặc dài bằng nhưng lá cuối lớn hơn.`, combo};
+  }
+  // trường hợp thường (Lẻ / Đôi / Bộ Ba): phải cùng loại, cùng số lá, và lớn hơn
+  if(combo.type!==lastPlay.type || combo.cards.length!==lastPlay.cards.length){
+    return {valid:false, reason:`Bạn phải đánh đúng loại bộ đang cần đè: ${comboLabel(lastPlay.type)} (${lastPlay.cards.length} lá).`, combo};
+  }
+  if(combo.power<=lastPlay.power){
+    return {valid:false, reason:"Bộ bài bạn chọn chưa lớn hơn bộ đang cần đè.", combo};
+  }
+  return {valid:true, reason:"", combo};
+}
+
+/* ============================================================
+   APP STATE
+============================================================ */
+const state = {
+  phase:'setup',
+  playerCount:4,
+  startSeatId:null,
+  seats:[],        // {id,label,pos,count,finished}
+  turnOrder:[],
+  turnIndex:0,
+  tableOwner:null,
+  lastPlay:null,
+  history:[],       // Card[]
+  yourHand:[],      // Card[]
+  draftSelected:new Set(), // ids selected during draft
+  playSelected:new Set(),  // ids selected from your hand to play this turn
+  oppSelected:new Set(),   // ids selected from unknown pool for opponent's turn
+  bombSuspect:false,
+  log:[],
+  rankOrder:[],
+  undoStack:[],
+  playerLog:{},      // seatId -> [{kind:'play'|'pass', ...}]
+  showInference:false,
+  aiDepthMode:'medium',      // 'fast'|'medium'|'deep'|'ultra'|'custom'
+  aiCustomIterations:'50',
+  aiCustomDepth:'15',
+  aiLoading:false,
+  aiResult:null,
+  aiError:null,
+  aiWhyExpanded:false,
+  aiProgress:null,
+  aiPlaystyleMode:'mechanical',   // 'fast'|'combo'|'mechanical'|'custom'
+  aiCustomStyles:new Set(),       // dùng khi aiPlaystyleMode==='custom' — chọn 2 hoặc 3 trong 3 lối
+  aiDeterminizationCache:{key:null, set:new Set()}, // nhớ các biến thể bài ẩn đã thử, tránh tính lại
+  aiRunToken:0, // mã phiên tính toán hiện tại — dùng để tự huỷ an toàn nếu trạng thái ván đổi giữa chừng
+  gameMode:'human',        // 'human'|'bot'
+  botDifficulty:'easy',    // 'easy'|'medium'|'hard'
+  botThinking:false,
+};
+
+function seatBaseLayout(count){
+  // Thứ tự mảng = thứ tự lượt đánh: Bạn → Phải → Đối diện → Trái → (quay lại Bạn)
+  if(count===2) return [{id:'you',label:'Bạn',pos:'bottom'},{id:'p1',label:'Đối thủ',pos:'top'}];
+  if(count===3) return [{id:'you',label:'Bạn',pos:'bottom'},{id:'p1',label:'Phải',pos:'right'},{id:'p2',label:'Trái',pos:'left'}];
+  return [{id:'you',label:'Bạn',pos:'bottom'},{id:'p1',label:'Phải',pos:'right'},{id:'p2',label:'Đối diện',pos:'top'},{id:'p3',label:'Trái',pos:'left'}];
+}
+
+function render(){
+  const app=document.getElementById('app');
+  let html = '';
+  if(state.phase==='setup') html = renderSetup();
+  else if(state.phase==='draft') html = renderDraft();
+  else if(state.phase==='play') html = renderPlay();
+  else if(state.phase==='finished') html = renderFinished();
+  html += renderCredit();
+  app.innerHTML = html;
+}
+
+function renderCredit(){
+  return `<div style="text-align:center;padding:18px 10px 6px;font-size:11px;color:rgba(242,234,217,0.35);">
+    Tạo bởi <b style="color:rgba(212,175,106,0.55);">daducblock</b> · code bởi Claude
+  </div>`;
+}
+
+/* ---------------- SETUP ---------------- */
+function renderSetup(){
+  const seats = seatBaseLayout(state.playerCount);
+  if(!state.startSeatId) state.startSeatId = seats[0].id;
+  return `
+    <header>
+      <div class="eyebrow">Master Algorithm Engine</div>
+      <h1>Tiến Lên Miền Nam</h1>
+      <div class="sub">Thiết lập bàn chơi</div>
+    </header>
+    <div class="panel">
+      <h2 class="step-title"><span class="num">1</span>Số người chơi</h2>
+      <div class="choice-row">
+        ${[2,3,4].map(n=>`<div class="choice-btn ${state.playerCount===n?'active':''}" onclick="setPlayerCount(${n})">${n} người<span class="cap">${n===4?'13 lá/người':'13 lá/người'}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="panel">
+      <h2 class="step-title"><span class="num">2</span>Ai đánh trước? <span style="font-weight:400;text-transform:none;color:rgba(242,234,217,0.5);font-size:11px;">(lượt kế tiếp luôn sang phải)</span></h2>
+      <div class="choice-row">
+        ${seats.map(s=>`<div class="choice-btn ${state.startSeatId===s.id?'active':''}" onclick="setStartSeat('${s.id}')">${s.label}</div>`).join('')}
+      </div>
+    </div>
+    <div class="panel">
+      <h2 class="step-title"><span class="num">3</span>Chế độ chơi</h2>
+      <div class="choice-row">
+        <div class="choice-btn ${state.gameMode==='human'?'active':''}" onclick="setGameMode('human')">👥 Người thật<span class="cap">bạn nhập bài đối thủ</span></div>
+        <div class="choice-btn ${state.gameMode==='bot'?'active':''}" onclick="setGameMode('bot')">🤖 Đấu với Bot<span class="cap">bot tự động chơi</span></div>
+      </div>
+      ${state.gameMode==='bot' ? `
+        <label style="margin-top:12px;">Độ khó</label>
+        <div class="choice-row">
+          ${Object.keys(BOT_DIFFICULTY).map(k=>`<div class="choice-btn ${state.botDifficulty===k?'active':''}" onclick="setBotDifficulty('${k}')">${BOT_DIFFICULTY[k].label}<span class="cap">${BOT_DIFFICULTY[k].styleCount[0]}–${BOT_DIFFICULTY[k].styleCount[1]} lối chơi</span></div>`).join('')}
+        </div>
+        <div class="hint" style="margin-top:8px;">Mỗi bot sẽ được gán ngẫu nhiên số lối chơi tương ứng độ khó (trong 13 lối), rồi dùng chính engine Siêu Gợi Ý AI để tự quyết định nước đi mỗi lượt. Bài và lối chơi của bot sẽ được tiết lộ khi ván kết thúc.</div>
+      ` : ''}
+    </div>
+    <button class="primary" onclick="goToDraft()">Tiếp tục → Chọn bài của bạn</button>
+  `;
+}
+function setPlayerCount(n){state.playerCount=n; state.startSeatId=null; render();}
+function setStartSeat(id){state.startSeatId=id; render();}
+function setGameMode(mode){state.gameMode=mode; render();}
+function setBotDifficulty(d){state.botDifficulty=d; render();}
+
+function goToDraft(){
+  state.seats = seatBaseLayout(state.playerCount).map(s=>({...s,count:13,finished:false}));
+  state.draftSelected = new Set();
+  state.phase='draft';
+  render();
+}
+
+/* ---------------- DRAFT (chọn bài của bạn) ---------------- */
+function renderDraft(){
+  const deck = buildFullDeck();
+  const bySuit = {};
+  SUITS.forEach(s=>bySuit[s]=deck.filter(c=>c.suit===s));
+  const otherSeats = state.seats.filter(s=>s.id!=='you');
+
+  return `
+    <header>
+      <div class="eyebrow">Master Algorithm Engine</div>
+      <h1>Tiến Lên Miền Nam</h1>
+      <div class="sub">Chọn bài trên tay của bạn</div>
+    </header>
+    <div class="panel">
+      <h2 class="step-title"><span class="num">3</span>Bấm chọn 13 lá bài của bạn</h2>
+      ${SUITS.map(s=>`
+        <div class="suit-row">
+          <div class="suit-label">${SUIT_SYMBOL[s]} ${SUIT_NAME[s]}</div>
+          <div class="card-grid">
+            ${bySuit[s].map(c=>{
+              const sel = state.draftSelected.has(c.id);
+              const disabled = !sel && state.draftSelected.size>=13;
+              return `<div class="pickcard ${c.isRed?'red':''} ${sel?'selected':''} ${disabled?'used':''}" onclick="${disabled?'':`toggleDraft('${c.id}')`}">${c.rank}<span class="suit-ic">${SUIT_SYMBOL[c.suit]}</span></div>`;
+            }).join('')}
+          </div>
+        </div>
+      `).join('')}
+      <div class="counter-line">Đã chọn: <b>${state.draftSelected.size}</b> / 13 ${state.draftSelected.size>=13?'<span style="color:var(--warn);">(đã đủ 13 lá)</span>':''}</div>
+      ${state.draftError?`<div class="err-line">${state.draftError}</div>`:''}
+    </div>
+    ${state.gameMode==='bot' ? `
+      <div class="panel">
+        <h2 class="step-title"><span class="num">4</span>Bài của Bot</h2>
+        <div class="hint">Bot sẽ tự động được chia ngẫu nhiên từ 39 lá còn lại trong bộ bài (13 lá/bot) khi bạn bấm "Bắt đầu ván đấu" — không cần chỉnh gì thêm.</div>
+      </div>
+    ` : `
+    <div class="panel">
+      <h2 class="step-title"><span class="num">4</span>Số lá của đối thủ (mặc định 13)</h2>
+      ${otherSeats.map(s=>`
+        <div class="stepper-row">
+          <span class="nm">${s.label}</span>
+          <div class="stepper">
+            <button onclick="stepOpp('${s.id}',-1)">−</button>
+            <span class="val" id="oppcount-${s.id}">${s.count}</span>
+            <button onclick="stepOpp('${s.id}',1)">+</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    `}
+    <button class="primary" ${state.draftSelected.size===0?'disabled':''} onclick="confirmDraft()">Bắt đầu ván đấu</button>
+    <button class="secondary" onclick="backToSetup()">← Quay lại thiết lập</button>
+  `;
+}
+function toggleDraft(id){
+  if(state.draftSelected.has(id)){
+    state.draftSelected.delete(id);
+    state.draftError = null;
+  } else {
+    if(state.draftSelected.size>=13){
+      state.draftError = "Bạn chỉ được chọn tối đa 13 lá.";
+      render();
+      return;
+    }
+    state.draftSelected.add(id);
+    state.draftError = null;
+  }
+  render();
+}
+function stepOpp(id,delta){
+  const seat = state.seats.find(s=>s.id===id);
+  seat.count = Math.max(0, Math.min(13, seat.count+delta));
+  render();
+}
+function backToSetup(){state.phase='setup'; render();}
+
+function confirmDraft(){
+  state.yourHand = [...state.draftSelected].map(cardById).sort((a,b)=>a.power-b.power);
+  const youSeat = state.seats.find(s=>s.id==='you');
+  youSeat.count = state.yourHand.length;
+  youSeat.startCount = state.yourHand.length;
+  youSeat.hiddenHand = null; // 'you' luôn dùng state.yourHand, không cần lưu riêng
+
+  const otherSeats = state.seats.filter(s=>s.id!=='you');
+  if(state.gameMode==='bot'){
+    // Chế độ đấu Bot: tự động chia bài thật cho từng bot (ẩn với người chơi) + gán ngẫu nhiên
+    // lối chơi theo độ khó đã chọn.
+    const usedIds = new Set(state.yourHand.map(c=>c.id));
+    let pool = buildFullDeck().filter(c=>!usedIds.has(c.id));
+    for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    const cfg = BOT_DIFFICULTY[state.botDifficulty] || BOT_DIFFICULTY.easy;
+    const allStyleKeys = Object.keys(AI_PLAYSTYLES);
+    let idx=0;
+    otherSeats.forEach(s=>{
+      const take = Math.min(13, pool.length-idx);
+      s.hiddenHand = pool.slice(idx, idx+take);
+      idx += take;
+      s.count = s.hiddenHand.length;
+      s.startCount = s.count;
+      const [minS,maxS] = cfg.styleCount;
+      const n = Math.max(1, Math.min(allStyleKeys.length, minS + Math.floor(Math.random()*(maxS-minS+1))));
+      const shuffled = [...allStyleKeys].sort(()=>Math.random()-0.5);
+      s.botStyles = shuffled.slice(0, n);
+      s.botStyleProfile = getStyleWeightProfile(s.botStyles);
+    });
+  } else {
+    otherSeats.forEach(s=>{ s.startCount = s.count; s.hiddenHand = null; s.botStyles = null; s.botStyleProfile = null; });
+  }
+
+  state.history = [];
+  state.turnOrder = rotateToStart(state.seats.map(s=>s.id), state.startSeatId);
+  state.turnIndex = 0;
+  state.tableOwner = state.turnOrder[0];
+  state.lastPlay = null;
+  state.playSelected = new Set();
+  state.oppSelected = new Set();
+  state.rankOrder = [];
+  state.undoStack = [];
+  state.playerLog = {};
+  state.seats.forEach(s=>{ if(s.id!=='you') state.playerLog[s.id]=[]; });
+  state.showInference = false;
+  state.aiResult = null; state.aiError = null; state.aiLoading = false; state.aiWhyExpanded = false; state.aiProgress = null;
+  state.aiDeterminizationCache = {key:null, set:new Set()};
+  state.botThinking = false;
+  state.log = [`Bắt đầu ván. ${seatLabel(state.startSeatId)} đánh trước.`];
+  state.phase='play';
+  render();
+}
+function rotateToStart(order, startId){
+  const idx = order.indexOf(startId);
+  return [...order.slice(idx), ...order.slice(0,idx)];
+}
+function seatLabel(id){const s=state.seats.find(x=>x.id===id); return s?s.label:id;}
+
+/* ---------------- UNDO ---------------- */
+function snapshotState(){
+  return {
+    seats: state.seats.map(s=>({...s})),
+    turnIndex: state.turnIndex,
+    tableOwner: state.tableOwner,
+    lastPlay: state.lastPlay ? {type:state.lastPlay.type, power:state.lastPlay.power, cardIds:state.lastPlay.cards.map(c=>c.id)} : null,
+    history: state.history.map(c=>c.id),
+    yourHand: state.yourHand.map(c=>c.id),
+    rankOrder: [...state.rankOrder],
+    log: [...state.log],
+    phase: state.phase,
+    playerLog: JSON.parse(JSON.stringify(state.playerLog)),
+  };
+}
+function pushUndo(){
+  state.undoStack.push(snapshotState());
+  if(state.undoStack.length>20) state.undoStack.shift();
+}
+function undoLastMove(){
+  if(state.undoStack.length===0) return;
+  const snap = state.undoStack.pop();
+  state.seats = snap.seats.map(s=>({...s}));
+  state.turnIndex = snap.turnIndex;
+  state.tableOwner = snap.tableOwner;
+  state.lastPlay = snap.lastPlay ? {type:snap.lastPlay.type, power:snap.lastPlay.power, cards:snap.lastPlay.cardIds.map(cardById)} : null;
+  state.history = snap.history.map(cardById);
+  state.yourHand = snap.yourHand.map(cardById).sort((a,b)=>a.power-b.power);
+  state.rankOrder = [...snap.rankOrder];
+  state.log = [...snap.log, "↺ Đã lùi lại thao tác trước."];
+  state.phase = snap.phase;
+  state.playerLog = snap.playerLog;
+  state.playSelected = new Set();
+  state.oppSelected = new Set();
+  state.playError = null;
+  state.oppError = null;
+  render();
+}
+
+/* ---------------- PLAY ---------------- */
+function currentSeat(){
+  let tries=0;
+  while(tries < state.turnOrder.length*2){
+    const id = state.turnOrder[state.turnIndex % state.turnOrder.length];
+    const seat = state.seats.find(s=>s.id===id);
+    if(!seat.finished) return seat;
+    state.turnIndex++;
+    tries++;
+  }
+  return null;
+}
+function unknownDeck(){
+  const known = new Set([...state.yourHand, ...state.history].map(c=>c.id));
+  return buildFullDeck().filter(c=>!known.has(c.id));
+}
+function isFreeLead(seatId){ return seatId === state.tableOwner; }
+
+function computeSuggestion(){
+  const key = gameAnalysisFingerprint();
+  if(_suggestionCache.key===key) return _suggestionCache.value;
+  const seat = currentSeat();
+  if(!seat || seat.id!=='you') return null; // không cache trường hợp rỗng (không phải lượt bạn)
+  const free = isFreeLead('you');
+  const hand = new Hand(state.yourHand);
+  const opponents = state.seats.filter(s=>s.id!=='you'&&!s.finished).map(s=>{
+    const inf = inferOpponent(s.id);
+    return {name:s.label, count:s.count, provenNoBomb: inf.noQuad && inf.noThreePair && inf.noFourPair};
+  });
+  const unk = unknownDeck();
+  const pigSafety = evaluatePigSafety(unk, opponents, state.bombSuspect);
+  const gs = {holder: free?'you':'opp', lastPlay: free?null:state.lastPlay, opponents, historyCount: state.history.length};
+  const move = selectBestMove(hand, gs, pigSafety);
+  const value = {move, pigSafety};
+  _suggestionCache = {key, value};
+  return value;
+}
+
+function renderPlay(){
+  const seat = currentSeat();
+  if(!seat){ state.phase='finished'; return renderFinished(); }
+  const free = isFreeLead(seat.id);
+  const layout = state.playerCount;
+
+  const seatHtml = (s)=>{
+    if(!s) return '';
+    const active = seat.id===s.id;
+    return `<div class="seat ${s.pos} ${active?'active':''} ${s.finished?'finished':''}">
+      <div class="sname">${s.label}${s.id===state.tableOwner?' 👑':''}</div>
+      <div class="scount">${s.count}<span class="u"> lá</span></div>
+      ${s.finished?'<div class="badge">Xong</div>':''}
+    </div>`;
+  };
+
+  const topSeat = state.seats.find(s=>s.pos==='top');
+  const leftSeat = state.seats.find(s=>s.pos==='left');
+  const rightSeat = state.seats.find(s=>s.pos==='right');
+  const youSeat = state.seats.find(s=>s.id==='you');
+
+  const centerHtml = `
+    <div class="center-area">
+      <div class="turn-label">Đến lượt: ${seat.label}${free?' — lượt tự do':''}</div>
+      ${ (!free && state.lastPlay) ? `
+        <div class="center-cards">${state.lastPlay.cards.map(c=>`<div class="minicard ${c.isRed?'red':''}">${c.display}</div>`).join('')}</div>
+        <div style="font-size:11px;margin-top:6px;color:rgba(242,234,217,0.5);">${comboLabel(state.lastPlay.type)} — cần đè</div>
+      ` : `<div class="free-lead-tag">◆ Ra bài tự do</div>` }
+    </div>
+  `;
+
+  let bottomHtml = '';
+  if(seat.id==='you'){
+    bottomHtml = renderYourTurn(free);
+  } else if(state.gameMode==='bot'){
+    bottomHtml = renderBotTurn(seat);
+    triggerBotMoveIfNeeded(seat);
+  } else {
+    bottomHtml = renderOppTurn(seat, free);
+  }
+
+  return `
+    <header>
+      <div class="eyebrow">Master Algorithm Engine</div>
+      <h1>Tiến Lên Miền Nam</h1>
+      <div class="sub">${layout} người chơi · Bàn đang diễn ra</div>
+    </header>
+
+    <div class="table-wrap">
+      ${topSeat?seatHtml(topSeat):'<div></div>'}
+      ${leftSeat?seatHtml(leftSeat):'<div></div>'}
+      ${centerHtml}
+      ${rightSeat?seatHtml(rightSeat):'<div></div>'}
+      <div class="you-area">${seatHtml(youSeat)}</div>
+    </div>
+
+    ${bottomHtml}
+
+    <div class="panel" style="margin-top:14px;">
+      <div class="stepper-row" style="border:none;cursor:pointer;" onclick="toggleInference()">
+        <span class="nm">🔍 Suy luận đối thủ đang giữ gì</span>
+        <span style="color:var(--gold-bright);font-size:12px;">${state.showInference?'Ẩn ▲':'Xem ▼'}</span>
+      </div>
+    </div>
+    ${state.showInference ? renderInferencePanel() : ''}
+
+    <div class="panel" style="margin-top:14px;">
+      <div class="stepper-row" style="border:none;">
+        <span class="nm">Nghi ngờ đối thủ ôm Bom</span>
+        <input type="checkbox" ${state.bombSuspect?'checked':''} onchange="toggleBomb()" style="width:18px;height:18px;">
+      </div>
+      <div class="log-panel">${state.log.slice(-8).map(l=>`<div>${l}</div>`).join('')}</div>
+    </div>
+    <button class="secondary" ${state.undoStack.length===0?'disabled':''} onclick="undoLastMove()">↺ Lùi lại thao tác vừa rồi (${state.undoStack.length})</button>
+    <button class="secondary" onclick="backToSetup()">Ván mới</button>
+  `;
+}
+function toggleBomb(){state.bombSuspect=!state.bombSuspect; render();}
+function toggleInference(){state.showInference=!state.showInference; render();}
+
+function renderInferencePanel(){
+  const oppSeats = state.seats.filter(s=>s.id!=='you' && !s.finished);
+  const cc = cardCountingReport();
+  const sup = computeSuperAnalysis();
+  const g = sup.global;
+  return `
+    <div class="panel">
+      <h2 class="step-title" style="margin-bottom:8px;"><span class="num">🏆</span>Lá / Bộ mạnh nhất còn trong trận</h2>
+      <div style="font-size:12.5px;line-height:1.8;">
+        ${g.strongestSingle ? `
+          <div>Lẻ mạnh nhất còn sống: <span class="minicard ${g.strongestSingle.card.isRed?'red':''}" style="display:inline-flex;margin:0 4px;">${g.strongestSingle.card.display}</span>
+            <span style="color:rgba(242,234,217,0.55);">(${g.strongestSingle.holder})</span>
+            ${g.strongestSingle.chopRisk!==null ? ` — khả năng bị chặt lại: <b style="color:${g.strongestSingle.chopRisk>=50?'var(--danger)':'var(--warn)'};">${g.strongestSingle.chopRisk.toFixed(0)}%</b>` : ''}
+          </div>` : ''}
+        <div>Đôi mạnh nhất còn có thể tồn tại: <b>${g.strongestPairRank ? 'Đôi '+g.strongestPairRank : '—'}</b></div>
+        <div>Bộ Ba mạnh nhất còn có thể tồn tại: <b>${g.strongestTripleRank ? 'Bộ Ba '+g.strongestTripleRank : '—'}</b></div>
+        <div>Sảnh dài nhất còn có thể tồn tại: <b>${g.strongestStraight ? g.strongestStraight.len+' lá, đỉnh '+g.strongestStraight.endRank : '—'}</b></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="step-title" style="margin-bottom:8px;"><span class="num">🔍</span>Đọc vị theo từng người</h2>
+      ${oppSeats.map(s=>{
+        const inf = inferOpponent(s.id);
+        const style = classifyPlaystyle(s.id);
+        const probsAll = rankHoldProbabilities(s.id);
+        const probsTop = rankHoldProbabilitiesTop(s.id, 5);
+        const bomb = sup.perOpponent[s.id].bomb;
+        return `
+          <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(212,175,106,0.15);">
+            <div style="font-weight:700;color:var(--gold-bright);font-size:13.5px;margin-bottom:5px;">${s.label} — còn ${s.count} lá${inf.hoarding?' <span class="pill warn">⚠ CÓ THỂ ÔM BỘ LỚN</span>':''}</div>
+            <div style="font-size:12px;color:rgba(242,234,217,0.55);margin-bottom:4px;">Lối chơi:</div>
+            <div style="margin-bottom:8px;">${style.map(t=>`<span class="tactic-tag">${t}</span>`).join('')}</div>
+
+            <div style="font-size:12px;color:rgba(242,234,217,0.55);margin-bottom:4px;">Khả năng có Bom (ước tính):</div>
+            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+              <span class="pill ${bomb.p3>=0.4?'danger':bomb.p3>=0.15?'warn':'safe'}">3 Đôi Thông: ${(bomb.p3*100).toFixed(0)}%</span>
+              <span class="pill ${bomb.pQuad>=0.4?'danger':bomb.pQuad>=0.15?'warn':'safe'}">Tứ Quý: ${(bomb.pQuad*100).toFixed(0)}%</span>
+              <span class="pill ${bomb.p4>=0.4?'danger':bomb.p4>=0.15?'warn':'safe'}">4 Đôi Thông: ${(bomb.p4*100).toFixed(0)}%</span>
+            </div>
+
+            <div style="font-size:12px;color:rgba(242,234,217,0.55);margin-bottom:4px;">Khả năng đang giữ — toàn bộ 3 → 2 (%):</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:5px;margin-bottom:4px;">
+              ${probsAll.map(p=>p.known
+                ? `<div style="text-align:center;padding:5px 3px;border-radius:5px;background:rgba(95,158,111,0.12);border:1px solid rgba(95,158,111,0.3);">
+                     <div style="font-size:11px;font-weight:700;color:var(--safe);">${p.rank}</div>
+                     <div style="font-size:9.5px;color:var(--safe);">lộ hết</div>
+                   </div>`
+                : `<div style="text-align:center;padding:5px 3px;border-radius:5px;background:rgba(212,175,106,${0.08+p.prob*0.4});border:1px solid rgba(212,175,106,0.3);">
+                     <div style="font-size:11px;font-weight:700;color:var(--cream);">${p.rank}</div>
+                     <div style="font-size:10px;color:var(--gold-bright);">${(p.prob*100).toFixed(0)}%</div>
+                   </div>`
+              ).join('')}
+            </div>
+            <div style="font-size:11px;color:rgba(242,234,217,0.45);margin-bottom:8px;">Nghi ngờ cao nhất: ${probsTop.map(p=>`${p.rank} (${(p.prob*100).toFixed(0)}%)`).join(', ')}</div>
+
+            <div style="font-size:12px;color:rgba(242,234,217,0.55);margin-bottom:4px;">Bài đã ra (${inf.playedCards.length} lá):</div>
+            <div style="margin-bottom:6px;">${inf.playedCards.length ? inf.playedCards.map(c=>`<span class="minicard ${c.isRed?'red':''}" style="display:inline-flex;margin:0 3px 3px 0;">${c.display}</span>`).join('') : '<span style="font-size:12px;color:rgba(242,234,217,0.4);">— chưa ra lá nào —</span>'}</div>
+
+            ${(inf.structBullets.length || inf.bullets.length) ? `
+              <div style="font-size:12px;color:rgba(242,234,217,0.55);margin-bottom:3px;">Suy luận (không có / khó có):</div>
+              <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;">
+                ${inf.structBullets.map(b=>`<li style="color:var(--warn);">⚡ ${b}</li>`).join('')}
+                ${inf.bullets.map(b=>`<li>${b}</li>`).join('')}
+              </ul>
+            ` : `<div style="font-size:12px;color:rgba(242,234,217,0.4);">Chưa đủ dữ liệu để suy luận (chưa từng bỏ lượt).</div>`}
+          </div>
+        `;
+      }).join('')}
+      <h2 class="step-title" style="margin:14px 0 8px;"><span class="num">#</span>Trừ lùi cấu trúc (đã lộ diện)</h2>
+      <div style="font-size:12.5px;line-height:1.7;">
+        <div><span style="color:rgba(242,234,217,0.55);">Đã ra đủ 4 lá (an toàn tuyệt đối):</span> ${cc.fully.length?cc.fully.join(', '):'—'}</div>
+        <div><span style="color:rgba(242,234,217,0.55);">Đã lộ 3/4 lá (còn đúng 1 lá ẩn trong bài đối thủ):</span> ${cc.almost.length?cc.almost.join(', '):'—'}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderYourTurn(free){
+  const sug = computeSuggestion();
+  const move = sug.move, pigSafety = sug.pigSafety;
+  const safetyPillClass = pigSafety.action==="DANGER_BLOCK_PIG"?"danger":(pigSafety.floorClean?"safe":"warn");
+  const safetyPillText = pigSafety.action==="DANGER_BLOCK_PIG"?"NGUY HIỂM":(pigSafety.floorClean?"SÀN SẠCH":"CHẤP NHẬN ĐƯỢC");
+
+  const hand = new Hand(state.yourHand);
+  const opponents = state.seats.filter(s=>s.id!=='you'&&!s.finished).map(s=>{
+    const inf = inferOpponent(s.id);
+    return {name:s.label, count:s.count, provenNoBomb: inf.noQuad && inf.noThreePair && inf.noFourPair};
+  });
+  const gs = {holder: free?'you':'opp', lastPlay: free?null:state.lastPlay, opponents, historyCount: state.history.length};
+  const superAnalysis = computeSuperAnalysis();
+  const candidates = rankCandidateMoves(hand, gs, pigSafety, superAnalysis, 4);
+  window._lastCandidates = candidates;
+
+  const handHtml = state.yourHand.map(c=>{
+    const sel = state.playSelected.has(c.id);
+    return `<div class="handcard ${c.isRed?'red':''} ${sel?'selected':''}" onclick="togglePlaySelect('${c.id}')">${c.rank}<span style="font-size:11px;">${SUIT_SYMBOL[c.suit]}</span></div>`;
+  }).join('');
+
+  const canPlay = state.playSelected.size>0;
+  const canPass = !free;
+
+  return `
+    <div class="panel">
+      <h2 class="step-title" style="margin-bottom:4px;"><span class="num">🂠</span>Bài của bạn (${state.yourHand.length} lá)</h2>
+      <div class="hand-strip">${handHtml || '<div style="font-size:12.5px;color:rgba(242,234,217,0.5);padding:10px;">Hết bài — bạn đã về!</div>'}</div>
+      <div class="action-row">
+        <button class="btn-play" ${canPlay?'':'disabled'} onclick="playSelected()">Đánh bài (${state.playSelected.size})</button>
+        <button class="btn-pass" ${canPass?'':'disabled'} onclick="passTurn()">Bỏ lượt</button>
+      </div>
+      <div class="action-row">
+        <button class="btn-suggest" onclick="useSuggestion()">✦ Dùng gợi ý bên dưới</button>
+      </div>
+      ${state.playError?`<div class="err-line">${state.playError}</div>`:''}
+    </div>
+
+    <div class="suggest-panel">
+      <h4>🎯 ${move.headline || 'Gợi ý'}</h4>
+      ${move.combo ? `
+        <div style="margin:6px 0;">${move.combo.cards.map(c=>`<span class="minicard ${c.isRed?'red':''}" style="display:inline-flex;margin-right:4px;">${c.display}</span>`).join('')}</div>
+        <div>${(move.tactics||[]).map(t=>`<span class="tactic-tag">${t}</span>`).join('')}</div>
+      ` : ''}
+      ${(move.notes||[]).map(n=>`<div style="margin-top:6px;">${n}</div>`).join('')}
+      <div style="margin-top:8px;">Trạng thái sàn: <span class="pill ${safetyPillClass}">${safetyPillText}</span> — rủi ro Heo <b>${pigSafety.riskLevel.toFixed(0)}%</b></div>
+    </div>
+
+    ${candidates.length ? `
+    <div class="panel" style="margin-top:12px;">
+      <h2 class="step-title" style="margin-bottom:8px;"><span class="num">⚡</span>Siêu Gợi Ý — các phương án xếp hạng</h2>
+      <div class="hint" style="margin-bottom:10px;">Điểm tối ưu là chỉ số chiến thuật ước tính của engine (không phải xác suất thắng chính xác tuyệt đối) — kết hợp Siêu Suy Luận (lối chơi, đã chứng minh thiếu gì, xác suất Bom) để chọn ra phương án an toàn/hiệu quả nhất.</div>
+      ${candidates.map((cd,i)=>`
+        <div style="background:rgba(8,32,27,0.5);border:1px solid ${i===0?'var(--gold-bright)':'rgba(212,175,106,0.25)'};border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;" onclick="selectCandidate(${i})" data-cand="${i}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-weight:700;color:var(--gold-bright);font-size:12.5px;">#${i+1} ${i===0?'— TỐT NHẤT':''}</span>
+            <span style="font-size:12px;color:var(--safe);font-weight:700;">${cd.pct}%</span>
+          </div>
+          <div>${cd.combo.cards.map(c=>`<span class="minicard ${c.isRed?'red':''}" style="display:inline-flex;margin-right:3px;">${c.display}</span>`).join('')}</div>
+          <div style="font-size:11px;color:rgba(242,234,217,0.55);margin-top:6px;">${cd.reasons.join(' · ')}</div>
+        </div>
+      `).join('')}
+    </div>
+    ` : ''}
+
+    ${renderAISuperSuggestion()}
+  `;
+}
+
+function renderAISuperSuggestion(){
+  const cfg = resolveDepthConfig();
+  return `
+    <div class="panel" style="margin-top:12px;border-color:rgba(160,130,230,0.4);">
+      <h2 class="step-title" style="margin-bottom:8px;"><span class="num">🧠</span>Siêu Gợi Ý AI — suy luận sâu</h2>
+      <div class="hint" style="margin-bottom:10px;">Engine tự chơi thử nhiều biến thể ván bài tiếp theo — mỗi biến thể chơi tới khi có người về Nhất/Nhì/Ba/Bét mới dừng (giống cách tính nước cờ vua), có tính cả khả năng đối thủ (và bạn) bỏ lượt chứ không chỉ đánh — rồi tự tổng hợp thành suy luận bằng lời. Luôn dựa trên toàn bộ Siêu Suy Luận + quy tắc chiến thuật của Siêu Gợi Ý thường để tránh ra nước đi kỳ lạ. Chạy hoàn toàn trong máy bạn, không phải chatbot, không cần mạng.</div>
+
+      <label style="margin-top:0;">Lối chơi AI (13 lối)</label>
+      <select onchange="setAIPlaystyle(this.value)" style="margin-bottom:6px;">
+        ${Object.keys(AI_PLAYSTYLES).map(k=>`<option value="${k}" ${state.aiPlaystyleMode===k?'selected':''}>${AI_PLAYSTYLES[k].icon} ${AI_PLAYSTYLES[k].label}</option>`).join('')}
+        <option value="custom" ${state.aiPlaystyleMode==='custom'?'selected':''}>🛠️ Tuỳ chỉnh — trộn 2–3 lối</option>
+      </select>
+      ${state.aiPlaystyleMode==='custom' ? `
+        <div class="hint" style="margin-bottom:6px;">Bấm chọn 2–3 lối để trộn (engine lấy trung bình trọng số của các lối đã chọn):</div>
+        <div class="choice-row" style="margin-bottom:8px;flex-wrap:wrap;">
+          ${Object.keys(AI_PLAYSTYLES).map(k=>`<div class="choice-btn ${state.aiCustomStyles.has(k)?'active':''}" style="flex:0 0 auto;min-width:110px;" onclick="toggleAICustomStyle('${k}')">${AI_PLAYSTYLES[k].icon} ${AI_PLAYSTYLES[k].label}</div>`).join('')}
+        </div>
+        <div style="margin-bottom:10px;">
+          ${[...state.aiCustomStyles].length ? [...state.aiCustomStyles].map(k=>`<div class="hint" style="margin-bottom:4px;"><b style="color:var(--gold-bright);">${AI_PLAYSTYLES[k].icon} ${AI_PLAYSTYLES[k].label}:</b> ${AI_PLAYSTYLES[k].desc}</div>`).join('') : `<div class="hint">Chưa chọn lối nào — sẽ tạm dùng Máy móc cho tới khi bạn chọn ít nhất 2 lối.</div>`}
+        </div>
+      ` : `<div class="hint" style="margin-bottom:10px;"><b style="color:var(--gold-bright);">${AI_PLAYSTYLES[state.aiPlaystyleMode].icon} ${AI_PLAYSTYLES[state.aiPlaystyleMode].label}:</b> ${AI_PLAYSTYLES[state.aiPlaystyleMode].desc}</div>`}
+
+      <div class="choice-row" style="margin-bottom:8px;">
+        <div class="choice-btn ${state.aiDepthMode==='fast'?'active':''}" onclick="setAIDepth('fast')">Nhanh<span class="cap">30 biến</span></div>
+        <div class="choice-btn ${state.aiDepthMode==='medium'?'active':''}" onclick="setAIDepth('medium')">Trung bình<span class="cap">150 biến</span></div>
+        <div class="choice-btn ${state.aiDepthMode==='deep'?'active':''}" onclick="setAIDepth('deep')">Sâu<span class="cap">500 biến</span></div>
+      </div>
+      <div class="choice-row" style="margin-bottom:8px;">
+        <div class="choice-btn ${state.aiDepthMode==='ultra'?'active':''}" onclick="setAIDepth('ultra')">Cực sâu<span class="cap">1.500 biến</span></div>
+        <div class="choice-btn ${state.aiDepthMode==='custom'?'active':''}" onclick="setAIDepth('custom')">Tuỳ chỉnh<span class="cap">tự nhập, không giới hạn</span></div>
+      </div>
+      ${state.aiDepthMode==='custom' ? `
+        <label>Số biến thể muốn tính (5 trở lên, không giới hạn — số càng lớn càng lâu)</label>
+        <input type="text" inputmode="numeric" value="${state.aiCustomIterations}" oninput="setAICustomIterations(this.value)">
+        <label>Độ sâu — số lượt đánh tính tiếp tối đa mỗi biến thể (2–30)</label>
+        <input type="text" inputmode="numeric" value="${state.aiCustomDepth}" oninput="setAICustomDepth(this.value)">
+        <div class="hint">Mỗi biến thể vẫn luôn cố chơi tới khi ván mô phỏng ngã ngũ; số lượt ở đây chỉ là giới hạn an toàn tối đa. Số quá lớn (vài chục nghìn biến, độ sâu 30) có thể mất nhiều giây — máy yếu nên cân nhắc.</div>
+      ` : `<div class="hint">Đang chọn: <b>${cfg.label}</b> — ${cfg.iterations} biến thể, tối đa ${cfg.maxPlies} lượt mỗi biến thể.</div>`}
+      <button class="primary" style="margin-top:12px;" ${state.aiLoading?'disabled':''} onclick="runAISuperSuggestion()">${state.aiLoading?'⏳ AI đang tính toán...':'🧠 Chạy Siêu Gợi Ý AI'}</button>
+      ${state.aiLoading && state.aiProgress ? renderAIProgress(state.aiProgress) : ''}
+      ${state.aiError ? `<div class="err-line">${state.aiError}</div>` : ''}
+      ${state.aiResult ? renderAIResult(state.aiResult) : ''}
+    </div>
+  `;
+}
+
+function renderAIProgress(p){
+  const pct = p.total ? Math.round((p.current/p.total)*100) : 0;
+  return `
+    <div style="margin-top:12px;" id="aiProgressWrap">
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;color:rgba(242,234,217,0.6);margin-bottom:4px;">
+        <span id="aiProgressText">Đang tính biến thể ${p.current}/${p.total}</span><span id="aiProgressPct">${pct}%</span>
+      </div>
+      <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin-bottom:8px;">
+        <div id="aiProgressBar" style="height:100%;width:${pct}%;background:linear-gradient(90deg,#a082e6,#cdb9f5);"></div>
+      </div>
+      <div id="aiProgressSample" style="font-size:11px;color:rgba(242,234,217,0.45);font-style:italic;">${p.sample?`Đang thử: ${p.sample}`:''}</div>
+    </div>
+  `;
+}
+// Cập nhật thanh tiến trình trực tiếp trên DOM (không render lại toàn bộ trang) để
+// vòng lặp mô phỏng chạy nhanh hơn nhiều, nhất là ở chế độ "Sâu"/"Cực sâu" trên điện thoại.
+function updateAIProgressDOM(p){
+  const txt = document.getElementById('aiProgressText');
+  const pctEl = document.getElementById('aiProgressPct');
+  const bar = document.getElementById('aiProgressBar');
+  const sample = document.getElementById('aiProgressSample');
+  if(!txt || !pctEl || !bar) return false; // panel chưa có trên DOM -> cần render lại toàn bộ 1 lần
+  const pct = p.total ? Math.round((p.current/p.total)*100) : 0;
+  txt.textContent = `Đang tính biến thể ${p.current}/${p.total}`;
+  pctEl.textContent = pct + '%';
+  bar.style.width = pct + '%';
+  if(sample) sample.textContent = p.sample ? `Đang thử: ${p.sample}` : '';
+  return true;
+}
+
+function renderAIResult(result){
+  const sims = [...result.simResults].sort((a,b)=>{
+    if(a.pruned!==b.pruned) return a.pruned?1:-1; // phương án bị loại sớm luôn xếp cuối
+    return b.avgScore-a.avgScore;
+  });
+  const activeSims = sims.filter(s=>!s.pruned);
+  const maxScore = Math.max(...activeSims.map(s=>s.avgScore), 1);
+  const minScore = Math.min(...activeSims.map(s=>s.avgScore), 0);
+  const range = Math.max(1, maxScore-minScore);
+  const syn = result.synthesis;
+  const prunedCount = sims.filter(s=>s.pruned).length;
+
+  return `
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(212,175,106,0.2);">
+      <div style="font-size:12px;color:rgba(242,234,217,0.55);margin-bottom:6px;">Đã mô phỏng ${result.iterations} biến thể (tối đa ${result.maxPlies} lượt/biến thể), cho ${sims.length} phương án${prunedCount?` — loại sớm ${prunedCount} phương án chắc chắn thua để tập trung phân tích sâu phần còn lại`:''}:</div>
+      ${sims.map(s=>{
+        const label = s.combo.type==='PASS' ? 'Bỏ lượt' : s.combo.cards.map(c=>c.display).join(' ');
+        if(s.pruned){
+          return `<div style="margin-bottom:7px;opacity:0.55;">
+            <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:2px;">
+              <span>${label} <span class="pill danger" style="margin-left:6px;">loại sớm</span></span>
+              <span style="color:rgba(242,234,217,0.5);">${s.runs} biến thể</span>
+            </div>
+            <div style="font-size:10.5px;color:rgba(242,234,217,0.45);font-style:italic;">${s.pruneReason||'Ngừng phân tích sâu — kém hẳn phương án dẫn đầu.'}</div>
+          </div>`;
+        }
+        const pct = Math.round(((s.avgScore-minScore)/range)*100);
+        return `<div style="margin-bottom:7px;">
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:2px;">
+            <span>${label}</span>
+            <span style="color:var(--gold-bright);">${pct}%${s.chopRate>0?` · nguy cơ bị chặt ${Math.round(s.chopRate*100)}%`:''}${s.finishRate>0?` · về đích ${Math.round(s.finishRate*100)}%`:''}${s.winRate>0?` · về Nhất ${Math.round(s.winRate*100)}%`:''}</span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${Math.max(4,pct)}%;background:linear-gradient(90deg,var(--gold),var(--gold-bright));"></div>
+          </div>
+        </div>`;
+      }).join('')}
+
+      <div style="margin-top:12px;background:rgba(160,130,230,0.1);border:1px solid rgba(160,130,230,0.4);border-radius:8px;padding:12px 14px;">
+        <div style="font-weight:700;color:#cdb9f5;font-size:13.5px;margin-bottom:6px;">🧠 ${syn.headline}</div>
+        <div style="cursor:pointer;color:var(--gold-bright);font-size:12px;margin-bottom:6px;" onclick="toggleAIWhy()">${state.aiWhyExpanded?'▲ Ẩn lý do chi tiết':'▼ Vì sao lại vậy? (xem suy luận)'}</div>
+        ${state.aiWhyExpanded ? `<div style="font-size:13px;line-height:1.7;color:rgba(242,234,217,0.85);margin-bottom:10px;">${syn.why}</div>` : ''}
+        <button class="btn-suggest" style="width:100%;padding:10px;border-radius:6px;font-size:12.5px;font-weight:700;cursor:pointer;" onclick="useAISuggestion()">✦ Dùng gợi ý AI này</button>
+      </div>
+    </div>
+  `;
+}
+function selectCandidate(i){
+  const cands = window._lastCandidates || [];
+  if(!cands[i]) return;
+  state.playSelected = new Set(cands[i].combo.cards.map(c=>c.id));
+  state.playError = null;
+  render();
+}
+function togglePlaySelect(id){
+  if(state.playSelected.has(id)) state.playSelected.delete(id);
+  else state.playSelected.add(id);
+  state.playError = null;
+  render();
+}
+function useSuggestion(){
+  const sug = computeSuggestion();
+  state.playError = null;
+  if(!sug.move.combo){ state.playSelected=new Set(); render(); return; }
+  state.playSelected = new Set(sug.move.combo.cards.map(c=>c.id));
+  render();
+}
+function playSelected(){
+  const played = [...state.playSelected].map(id=>state.yourHand.find(c=>c.id===id)).filter(Boolean);
+  if(played.length===0) return;
+  const free = isFreeLead('you');
+  const validation = validateMove(played, free, state.lastPlay);
+  if(!validation.valid){
+    state.playError = validation.reason;
+    render();
+    return;
+  }
+  state.playError = null;
+  const combo = validation.combo;
+  pushUndo();
+  state.yourHand = state.yourHand.filter(c=>!state.playSelected.has(c.id));
+  state.history.push(...played);
+  state.lastPlay = combo;
+  state.tableOwner = 'you';
+  const youSeat = state.seats.find(s=>s.id==='you');
+  youSeat.count = state.yourHand.length;
+  state.log.push(`Bạn đánh ${comboLabel(combo.type)}: ${played.map(c=>c.display).join(' ')}`);
+  state.playSelected = new Set();
+  if(youSeat.count===0){ youSeat.finished=true; state.rankOrder.push('you'); state.log.push('Bạn đã về!'); }
+  advanceTurn();
+}
+function passTurn(){
+  if(isFreeLead('you')){ state.playError = 'Đang giữ cái tự do — bắt buộc phải ra bài, không được bỏ lượt.'; render(); return; }
+  pushUndo();
+  state.log.push(`Bạn bỏ lượt.`);
+  advanceTurn();
+}
+
+function renderBotTurn(seat){
+  const cfg = BOT_DIFFICULTY[state.botDifficulty] || BOT_DIFFICULTY.easy;
+  const styles = (seat.botStyles||[]).map(k=>AI_PLAYSTYLES[k] ? `${AI_PLAYSTYLES[k].icon} ${AI_PLAYSTYLES[k].label}` : k);
+  return `
+    <div class="panel">
+      <h2 class="step-title"><span class="num">🤖</span>${seat.label} đang suy nghĩ...</h2>
+      <div class="hint">Độ khó: <b>${cfg.label}</b> (${cfg.iterations} biến thể, tối đa ${cfg.maxPlies} lượt mỗi biến thể) — dùng chính engine Siêu Gợi Ý AI để chọn nước đi.</div>
+      <div class="hint" style="margin-top:4px;">Lối chơi bot đang dùng sẽ được tiết lộ khi ván kết thúc.</div>
+    </div>
+  `;
+}
+
+function renderOppTurn(seat, free){
+  const unk = unknownDeck();
+  const bySuit = {}; SUITS.forEach(s=>bySuit[s]=unk.filter(c=>c.suit===s));
+  const maxSelectable = seat.count;
+  const selCount = state.oppSelected.size;
+
+  return `
+    <div class="panel opp-picker">
+      <h2 class="step-title" style="margin-bottom:4px;"><span class="num">🂠</span>${seat.label} đánh gì?</h2>
+      <div class="hint">${free ? `Đang giữ cái tự do — <b>bắt buộc phải ra bài</b>, không được bỏ lượt.` : `Bấm chọn các lá ${seat.label} vừa đánh ra (tối đa ${maxSelectable} lá).`}</div>
+      ${SUITS.map(s=>bySuit[s].length?`
+        <div class="suit-row">
+          <div class="suit-label">${SUIT_SYMBOL[s]} ${SUIT_NAME[s]}</div>
+          <div class="card-grid">
+            ${bySuit[s].map(c=>{
+              const sel = state.oppSelected.has(c.id);
+              const disabled = !sel && selCount>=maxSelectable;
+              return `<div class="pickcard ${c.isRed?'red':''} ${sel?'selected':''} ${disabled?'used':''}" onclick="${disabled?'':`toggleOppSelect('${c.id}')`}">${c.rank}<span class="suit-ic">${SUIT_SYMBOL[c.suit]}</span></div>`;
+            }).join('')}
+          </div>
+        </div>
+      `:'').join('')}
+      <div class="counter-line">Đã chọn: <b>${selCount}</b> / ${maxSelectable}</div>
+      <div class="action-row">
+        <button class="btn-play" ${selCount>0?'':'disabled'} onclick="confirmOppPlay('${seat.id}')">Xác nhận đánh (${selCount})</button>
+        <button class="btn-pass" ${free?'disabled':''} onclick="oppPass('${seat.id}')">Bỏ lượt${free?' (không thể — đang tự do)':''}</button>
+      </div>
+      ${state.oppError?`<div class="err-line">${state.oppError}</div>`:''}
+    </div>
+  `;
+}
+function toggleOppSelect(id){
+  if(state.oppSelected.has(id)) state.oppSelected.delete(id);
+  else state.oppSelected.add(id);
+  state.oppError = null;
+  render();
+}
+function confirmOppPlay(seatId){
+  const seat = state.seats.find(s=>s.id===seatId);
+  const played = [...state.oppSelected].map(cardById);
+  if(played.length===0) return;
+  const free = isFreeLead(seatId);
+  const facedCombo = free ? null : state.lastPlay;
+  const validation = validateMove(played, free, state.lastPlay);
+  if(!validation.valid){
+    state.oppError = validation.reason;
+    render();
+    return;
+  }
+  state.oppError = null;
+  const combo = validation.combo;
+  pushUndo();
+  state.history.push(...played);
+  seat.count = Math.max(0, seat.count - played.length);
+  state.lastPlay = combo;
+  state.tableOwner = seatId;
+  state.log.push(`${seat.label} đánh ${comboLabel(combo.type)}: ${played.map(c=>c.display).join(' ')}`);
+  if(!state.playerLog[seatId]) state.playerLog[seatId]=[];
+  state.playerLog[seatId].push({
+    kind:'play', cards:played.map(c=>c.id), comboType:combo.type, comboLen:combo.cards.length, comboPower:combo.power,
+    facedFree:free, facedComboType: facedCombo?facedCombo.type:null, facedComboLen: facedCombo?facedCombo.cards.length:null, facedComboPower: facedCombo?facedCombo.power:null,
+  });
+  state.oppSelected = new Set();
+  if(seat.count===0){ seat.finished=true; state.rankOrder.push(seatId); state.log.push(`${seat.label} đã về!`); }
+  advanceTurn();
+}
+function oppPass(seatId){
+  const seat = state.seats.find(s=>s.id===seatId);
+  const free = isFreeLead(seatId);
+  if(free){ state.oppError = 'Đang giữ cái tự do — bắt buộc phải ra bài, không được bỏ lượt.'; render(); return; }
+  pushUndo();
+  state.log.push(`${seat.label} bỏ lượt.`);
+  if(!free && state.lastPlay){
+    if(!state.playerLog[seatId]) state.playerLog[seatId]=[];
+    state.playerLog[seatId].push({
+      kind:'pass', facedComboType: state.lastPlay.type, facedComboLen: state.lastPlay.cards.length, facedComboPower: state.lastPlay.power,
+    });
+  }
+  state.oppSelected = new Set();
+  advanceTurn();
+}
+
+function advanceTurn(){
+  state.playError = null;
+  state.oppError = null;
+  state.aiResult = null;
+  state.aiError = null;
+  state.aiWhyExpanded = false;
+  state.aiProgress = null;
+  state.aiRunToken = (state.aiRunToken||0) + 1; // huỷ mọi vòng tính Siêu Gợi Ý AI còn dở dang từ lượt trước
+  const remaining = state.seats.filter(s=>!s.finished);
+  if(remaining.length<=1){
+    remaining.forEach(s=>{ if(!state.rankOrder.includes(s.id)) state.rankOrder.push(s.id); });
+    state.phase='finished';
+    render();
+    return;
+  }
+  state.turnIndex++;
+
+  // ============================================================
+  // Khi một lượt ra bài không ai chặn được và bài quay vòng đúng lại người đã ra bài đó
+  // (mà người đó CHƯA về) — đúng luật, người đó được cầm cái mới và ra bài tự do
+  // (lá bất kỳ, không phải đè ai cả).
+  // Chỉ khi người đó đã về (hết bài) ngay sau khi ra bài thì mới không thể quay lại họ —
+  // lúc này người TỚI LƯỢT KẾ TIẾP (đã bỏ qua các ghế đã về ở trên) sẽ cầm cái mới,
+  // ra bài tự do thay.
+  // ============================================================
+  let guard = state.turnOrder.length*3 + 5;
+  while(guard-- > 0){
+    const nextId = state.turnOrder[state.turnIndex % state.turnOrder.length];
+    const nextSeat = state.seats.find(s=>s.id===nextId);
+    if(nextSeat && nextSeat.finished){ state.turnIndex++; continue; }
+    const ownerSeat = state.seats.find(s=>s.id===state.tableOwner);
+    if(nextId===state.tableOwner){
+      // Không ai chặn được, bài quay đúng vòng về lại đúng chủ bài (chưa về) -> cầm cái tự do.
+      state.log.push(`✅ Không ai chặn được — ${seatLabel(nextId)} được cầm cái mới, ra bài tự do.`);
+      state.lastPlay = null;
+    } else if(!ownerSeat || ownerSeat.finished){
+      // Chủ bài đã về (hết bài) nên không thể quay lại họ -> người tới lượt kế tiếp cầm cái tự do.
+      state.tableOwner = nextId;
+      state.lastPlay = null;
+      state.log.push(`${seatLabel(nextId)} được cầm cái mới (chủ bài trước đã về), ra bài tự do.`);
+    }
+    break;
+  }
+  render();
+}
+
+/* ---------------- FINISHED ---------------- */
+function renderFinished(){
+  let order = state.rankOrder.length ? [...state.rankOrder] : state.seats.map(s=>s.id);
+  // đảm bảo mọi ghế đều có mặt trong bảng xếp hạng (phòng trường hợp game kết thúc đột ngột)
+  state.seats.forEach(s=>{ if(!order.includes(s.id)) order.push(s.id); });
+
+  // Luật "thua trắng": nếu ai đó về Nhất mà có người vẫn còn nguyên số lá lúc chia bài
+  // (chưa từng đánh được lá nào) — người đó bị đẩy xuống hạng BÉT tuyệt đối, bất kể vị trí
+  // tính theo số lá còn lại là gì.
+  const whiteoutIds = new Set();
+  state.seats.forEach(s=>{
+    if(s.startCount && s.count===s.startCount && order[0]!==s.id){
+      whiteoutIds.add(s.id);
+    }
+  });
+  if(whiteoutIds.size){
+    const rest = order.filter(id=>!whiteoutIds.has(id));
+    order = [...rest, ...order.filter(id=>whiteoutIds.has(id))];
+  }
+
+  const labels = ['🥇 Nhất','🥈 Nhì','🥉 Ba','🍗 Tư'];
+  return `
+    <header>
+      <div class="eyebrow">Master Algorithm Engine</div>
+      <h1>Kết thúc ván</h1>
+      <div class="sub">Bảng xếp hạng</div>
+    </header>
+    <div class="panel">
+      ${order.map((id,i)=>{
+        const s = state.seats.find(x=>x.id===id);
+        const isWhiteout = whiteoutIds.has(id);
+        return `<div class="final-rank">${labels[i]||('#'+(i+1))}: <b>${seatLabel(id)}</b>${isWhiteout?' <span class="pill danger">🫥 Thua trắng — chưa đánh lá nào</span>':''}</div>`;
+      }).join('')}
+    </div>
+    ${state.gameMode==='bot' ? renderBotReveal() : ''}
+    <button class="primary" onclick="backToSetup()">Ván mới</button>
+  `;
+}
+
+function renderBotReveal(){
+  const botSeats = state.seats.filter(s=>s.id!=='you');
+  return `
+    <div class="panel">
+      <h2 class="step-title" style="margin-bottom:8px;"><span class="num">🤖</span>Tiết lộ Bot</h2>
+      ${botSeats.map(s=>{
+        const styles = (s.botStyles||[]).map(k=>AI_PLAYSTYLES[k] ? `<span class="tactic-tag">${AI_PLAYSTYLES[k].icon} ${AI_PLAYSTYLES[k].label}</span>` : '').join('');
+        const remaining = s.hiddenHand || [];
+        return `
+          <div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(212,175,106,0.15);">
+            <div style="font-weight:700;color:var(--gold-bright);font-size:13.5px;margin-bottom:5px;">${s.label}</div>
+            <div style="font-size:12px;color:rgba(242,234,217,0.55);margin-bottom:4px;">Lối chơi đã dùng (${(s.botStyles||[]).length}):</div>
+            <div style="margin-bottom:8px;">${styles || '<span class="hint">—</span>'}</div>
+            <div style="font-size:12px;color:rgba(242,234,217,0.55);margin-bottom:4px;">Bài còn lại lúc kết thúc (${remaining.length} lá):</div>
+            <div>${remaining.length ? remaining.map(c=>`<span class="minicard ${c.isRed?'red':''}" style="display:inline-flex;margin:0 3px 3px 0;">${c.display}</span>`).join('') : '<span class="hint">Đã đánh hết — về đích trọn vẹn.</span>'}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

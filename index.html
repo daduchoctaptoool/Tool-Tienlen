@@ -1106,17 +1106,24 @@ function computeBotMove(seatId){
 function executeBotMove(seatId, mv){
   const seat = state.seats.find(s=>s.id===seatId);
   if(!seat || seat.finished) return;
+  const free = isFreeLead(seatId);
+  if(free && (!mv || mv.type==='PASS')){
+    // An toàn: đang tự do thì không được phép bỏ lượt — nếu vì lý do gì đó computeBotMove
+    // trả về rỗng, ép chọn bộ hợp lệ đầu tiên trong tay thay vì để bot bỏ lượt sai luật.
+    const hand = new Hand(seat.hiddenHand);
+    const fallback = buildAllPlayableCombos(hand)[0];
+    if(fallback) mv = fallback;
+  }
   if(!mv || mv.type==='PASS'){
-    const free = isFreeLead(seatId);
     state.log.push(`${seat.label} bỏ lượt.`);
     if(!free && state.lastPlay){
       if(!state.playerLog[seatId]) state.playerLog[seatId]=[];
       state.playerLog[seatId].push({kind:'pass', facedComboType: state.lastPlay.type, facedComboLen: state.lastPlay.cards.length, facedComboPower: state.lastPlay.power});
     }
+    state.passStreak++;
     advanceTurn();
     return;
   }
-  const free = isFreeLead(seatId);
   const facedCombo = free ? null : state.lastPlay;
   const played = mv.cards;
   const combo = classifyCombo(played);
@@ -1126,6 +1133,7 @@ function executeBotMove(seatId, mv){
   state.history.push(...played);
   state.lastPlay = combo;
   state.tableOwner = seatId;
+  state.passStreak = 0;
   state.log.push(`${seat.label} đánh ${comboLabel(combo.type)}: ${played.map(c=>c.display).join(' ')}`);
   if(!state.playerLog[seatId]) state.playerLog[seatId]=[];
   state.playerLog[seatId].push({
@@ -1558,13 +1566,10 @@ function validateMove(cards, free, lastPlay){
     if(combo.type!==ComboType.STRAIGHT){
       return {valid:false, reason:"Bạn phải đánh Sảnh để đè Sảnh này.", combo};
     }
-    if(combo.cards.length>lastPlay.cards.length){
-      return {valid:true, reason:"", combo}; // Sảnh dài hơn luôn chặt được Sảnh ngắn hơn
-    }
     if(combo.cards.length===lastPlay.cards.length && combo.power>lastPlay.power){
       return {valid:true, reason:"", combo};
     }
-    return {valid:false, reason:`Sảnh phải dài hơn ${lastPlay.cards.length} lá, hoặc dài bằng nhưng lá cuối lớn hơn.`, combo};
+    return {valid:false, reason:`Sảnh phải đúng ${lastPlay.cards.length} lá và lá cuối lớn hơn mới đè được (Sảnh không tính dài/ngắn hơn).`, combo};
   }
   // trường hợp thường (Lẻ / Đôi / Bộ Ba): phải cùng loại, cùng số lá, và lớn hơn
   if(combo.type!==lastPlay.type || combo.cards.length!==lastPlay.cards.length){
@@ -1611,6 +1616,7 @@ const state = {
   aiCustomStyles:new Set(),       // dùng khi aiPlaystyleMode==='custom' — chọn 2 hoặc 3 trong 3 lối
   aiDeterminizationCache:{key:null, set:new Set()}, // nhớ các biến thể bài ẩn đã thử, tránh tính lại
   aiRunToken:0, // mã phiên tính toán hiện tại — dùng để tự huỷ an toàn nếu trạng thái ván đổi giữa chừng
+  passStreak:0, // số lượt BỎ liên tiếp kể từ lần ra bài thành công gần nhất — dùng để xác định khi nào "ngã ngũ"
   gameMode:'human',        // 'human'|'bot'
   botDifficulty:'easy',    // 'easy'|'medium'|'hard'
   botThinking:false,
@@ -1815,6 +1821,7 @@ function confirmDraft(){
   state.aiResult = null; state.aiError = null; state.aiLoading = false; state.aiWhyExpanded = false; state.aiProgress = null;
   state.aiDeterminizationCache = {key:null, set:new Set()};
   state.botThinking = false;
+  state.passStreak = 0;
   state.log = [`Bắt đầu ván. ${seatLabel(state.startSeatId)} đánh trước.`];
   state.phase='play';
   render();
@@ -1838,6 +1845,7 @@ function snapshotState(){
     log: [...state.log],
     phase: state.phase,
     playerLog: JSON.parse(JSON.stringify(state.playerLog)),
+    passStreak: state.passStreak,
   };
 }
 function pushUndo(){
@@ -1857,6 +1865,7 @@ function undoLastMove(){
   state.log = [...snap.log, "↺ Đã lùi lại thao tác trước."];
   state.phase = snap.phase;
   state.playerLog = snap.playerLog;
+  state.passStreak = snap.passStreak||0;
   state.playSelected = new Set();
   state.oppSelected = new Set();
   state.playError = null;
@@ -2289,6 +2298,7 @@ function playSelected(){
   state.history.push(...played);
   state.lastPlay = combo;
   state.tableOwner = 'you';
+  state.passStreak = 0;
   const youSeat = state.seats.find(s=>s.id==='you');
   youSeat.count = state.yourHand.length;
   state.log.push(`Bạn đánh ${comboLabel(combo.type)}: ${played.map(c=>c.display).join(' ')}`);
@@ -2300,6 +2310,7 @@ function passTurn(){
   if(isFreeLead('you')){ state.playError = 'Đang giữ cái tự do — bắt buộc phải ra bài, không được bỏ lượt.'; render(); return; }
   pushUndo();
   state.log.push(`Bạn bỏ lượt.`);
+  state.passStreak++;
   advanceTurn();
 }
 
@@ -2371,6 +2382,7 @@ function confirmOppPlay(seatId){
   seat.count = Math.max(0, seat.count - played.length);
   state.lastPlay = combo;
   state.tableOwner = seatId;
+  state.passStreak = 0;
   state.log.push(`${seat.label} đánh ${comboLabel(combo.type)}: ${played.map(c=>c.display).join(' ')}`);
   if(!state.playerLog[seatId]) state.playerLog[seatId]=[];
   state.playerLog[seatId].push({
@@ -2387,6 +2399,7 @@ function oppPass(seatId){
   if(free){ state.oppError = 'Đang giữ cái tự do — bắt buộc phải ra bài, không được bỏ lượt.'; render(); return; }
   pushUndo();
   state.log.push(`${seat.label} bỏ lượt.`);
+  state.passStreak++;
   if(!free && state.lastPlay){
     if(!state.playerLog[seatId]) state.playerLog[seatId]=[];
     state.playerLog[seatId].push({
@@ -2413,32 +2426,38 @@ function advanceTurn(){
     return;
   }
   state.turnIndex++;
+  // Bỏ qua các ghế đã về để tìm người tới lượt kế tiếp.
+  let guard = state.turnOrder.length*2 + 5;
+  while(guard-- > 0){
+    const id = state.turnOrder[state.turnIndex % state.turnOrder.length];
+    const s = state.seats.find(x=>x.id===id);
+    if(s && s.finished){ state.turnIndex++; continue; }
+    break;
+  }
+  const nextId = state.turnOrder[state.turnIndex % state.turnOrder.length];
 
   // ============================================================
-  // Khi một lượt ra bài không ai chặn được và bài quay vòng đúng lại người đã ra bài đó
-  // (mà người đó CHƯA về) — đúng luật, người đó được cầm cái mới và ra bài tự do
-  // (lá bất kỳ, không phải đè ai cả).
-  // Chỉ khi người đó đã về (hết bài) ngay sau khi ra bài thì mới không thể quay lại họ —
-  // lúc này người TỚI LƯỢT KẾ TIẾP (đã bỏ qua các ghế đã về ở trên) sẽ cầm cái mới,
-  // ra bài tự do thay.
+  // Xác định "trick" hiện tại đã NGÃ NGŨ hay chưa — dựa trực tiếp vào SỐ LƯỢT BỎ LIÊN TIẾP
+  // kể từ lần ra bài thành công gần nhất (state.passStreak), KHÔNG dựa vào so khớp vị trí
+  // như trước (dễ sai khi chủ bài đã về giữa chừng, khiến việc so khớp không bao giờ đúng
+  // hoặc ngược lại yêu cầu nhiều lượt bỏ hơn mức thật sự cần thiết).
+  //   - Nếu chủ bài còn đang chơi: cần đúng (số người còn lại - 1) lượt bỏ từ những người khác.
+  //   - Nếu chủ bài đã về: cần đúng (số người còn lại) lượt bỏ, vì không ai được miễn cả.
+  // Ngã ngũ xong: chủ bài (nếu còn) được cầm cái tự do lại; nếu chủ bài đã về thì người tới
+  // lượt kế tiếp (đã bỏ qua các ghế đã về) cầm cái tự do thay.
   // ============================================================
-  let guard = state.turnOrder.length*3 + 5;
-  while(guard-- > 0){
-    const nextId = state.turnOrder[state.turnIndex % state.turnOrder.length];
-    const nextSeat = state.seats.find(s=>s.id===nextId);
-    if(nextSeat && nextSeat.finished){ state.turnIndex++; continue; }
-    const ownerSeat = state.seats.find(s=>s.id===state.tableOwner);
-    if(nextId===state.tableOwner){
-      // Không ai chặn được, bài quay đúng vòng về lại đúng chủ bài (chưa về) -> cầm cái tự do.
-      state.log.push(`✅ Không ai chặn được — ${seatLabel(nextId)} được cầm cái mới, ra bài tự do.`);
-      state.lastPlay = null;
-    } else if(!ownerSeat || ownerSeat.finished){
-      // Chủ bài đã về (hết bài) nên không thể quay lại họ -> người tới lượt kế tiếp cầm cái tự do.
-      state.tableOwner = nextId;
-      state.lastPlay = null;
-      state.log.push(`${seatLabel(nextId)} được cầm cái mới (chủ bài trước đã về), ra bài tự do.`);
-    }
-    break;
+  const activeSeats = state.seats.filter(s=>!s.finished);
+  const ownerSeat = state.seats.find(s=>s.id===state.tableOwner);
+  const ownerStillActive = !!(ownerSeat && !ownerSeat.finished);
+  const neededPasses = activeSeats.length - (ownerStillActive ? 1 : 0);
+
+  if(neededPasses<=0 || state.passStreak>=neededPasses){
+    const freeOwnerId = ownerStillActive ? state.tableOwner : nextId;
+    state.tableOwner = freeOwnerId;
+    state.lastPlay = null;
+    state.passStreak = 0;
+    state.turnIndex = state.turnOrder.indexOf(freeOwnerId);
+    state.log.push(`✅ Không ai chặn được — ${seatLabel(freeOwnerId)} được cầm cái mới, ra bài tự do.`);
   }
   render();
 }
